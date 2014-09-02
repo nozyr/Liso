@@ -90,7 +90,7 @@ void check_clients(pool *p)
 {
     int i, connfd, n;
     char buf[BUFSIZE];
-    char* sendbuf;
+    // char* sendbuf;
 
     for (i = 0; (i <= p->maxi) && (p->nready > 0); i++)
     {
