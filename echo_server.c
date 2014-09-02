@@ -20,9 +20,9 @@
 #include <unistd.h>
 
 // #define ECHO_PORT 9999
-#define BUFSIZE 8192
+#define BUFSIZE 4096
 
-int byte_cnt = 0;
+// int byte_cnt = 0;
 
 typedef struct
 {
@@ -90,6 +90,7 @@ void check_clients(pool *p)
 {
     int i, connfd, n;
     char buf[BUFSIZE];
+    char* sendbuf;
 
     for (i = 0; (i <= p->maxi) && (p->nready > 0); i++)
     {
@@ -100,16 +101,14 @@ void check_clients(pool *p)
         {
             p->nready--;
 
-            if ((n = read(connfd, buf, BUFSIZE)) != 0)
+            if ((n = recv(connfd, buf, BUFSIZE, MSG_DONTWAIT)) > 0)
             {
-                byte_cnt += n;
-                printf("Server received %d (%d total) bytes on fd %d\n",
-                       n, byte_cnt, connfd);
+                // printf("receive %d bytes on port %d\n", n, connfd);
                 write(connfd, buf, n);
             }
 
             /* EOF detected, remove descriptor from pool */
-            else
+            if (n == 0)
             {
                 close(connfd);
                 FD_CLR(connfd, &p->read_set);

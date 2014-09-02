@@ -20,7 +20,7 @@ socketList = []
 
 
 for i in xrange(numConnections):
-	s = socket(AF_INET, SOCK_STREAM)	
+	s = socket(AF_INET, SOCK_STREAM)
 	s.connect((serverHost, serverPort))
 	socketList.append(s)
 
@@ -31,12 +31,13 @@ for i in xrange(numTrials):
 	randomLen = []
 	socketSubset = random.sample(socketList, numConnections)
 	for j in xrange(numWritesReads):
-			random_len = random.randrange(1, numBytes)
+			# random_len = random.randrange(1, numBytes)
+			random_len = numBytes
 			random_string = os.urandom(random_len)
 
                         # include num_bytes\n at the front
-			randomData.append(str(random_len)+"\n"+random_string) 
-			randomLen.append(random_len+len(str(random_len))+1) 
+			randomData.append(str(random_len)+"\n"+random_string)
+			randomLen.append(random_len+len(str(random_len))+1)
 			socketSubset[j].send(randomData[j])
 
 	for j in xrange(numWritesReads):
@@ -44,7 +45,7 @@ for i in xrange(numTrials):
 			if(data != randomData[j]):
 				sys.stderr.write("Error: Data received is not the same as sent! \n")
 				sys.exit(1)
-				
+
 
 for i in xrange(numConnections):
 	socketList[i].close()
