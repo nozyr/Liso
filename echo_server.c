@@ -3,10 +3,10 @@
 *                                                                             *
 * Description: This file contains the C source code for an echo server.  The  *
 *              server runs on a hard-coded port and simply write back anything*
-*              sent to it by connected clients.  It does not support          *
-*              concurrent clients.                                            *
+*              sent to it by connected clients. The code is based on the      *
+*              starter code provided and the I/O multiplex code on 15213      *
 *                                                                             *
-* Authors: Athula Balachandran <abalacha@cs.cmu.edu>,                         *
+* Authors: Yurui Zhou <yuruiz@ece.cmu.edu                                     *
 *          Wolf Richter <wolf@cs.cmu.edu>                                     *
 *                                                                             *
 *******************************************************************************/
@@ -20,18 +20,9 @@
 #include <unistd.h>
 
 #define ECHO_PORT 9999
-#define BUF_SIZE 4096
-#define RIO_BUFSIZE 8192
+#define BUFSIZE 8192
 
 int byte_cnt = 0;
-
-typedef struct
-{
-    int rio_fd;                /* descriptor for this internal buf */
-    int rio_cnt;               /* unread bytes in internal buf */
-    char *rio_bufptr;          /* next unread byte in internal buf */
-    char rio_buf[RIO_BUFSIZE]; /* internal buffer */
-} rio_t;
 
 typedef struct
 {
@@ -41,7 +32,6 @@ typedef struct
     int nready;
     int maxi;
     int clientfd[FD_SETSIZE];
-    rio_t clientrio[FD_SETSIZE];
 } pool;
 
 int close_socket(int sock)
@@ -77,18 +67,17 @@ void add_client(int connfd, pool *p)
         if (p->clientfd[i] < 0)
         {
             /* Add connected descriptor to the pool */
-            p->clientfd[i] = connfd;                 //line:conc:echoservers:beginaddclient
-            Rio_readinitb(&p->clientrio[i], connfd); //line:conc:echoservers:endaddclient
+            p->clientfd[i] = connfd;
 
             /* Add the descriptor to descriptor set */
-            FD_SET(connfd, &p->read_set); //line:conc:echoservers:addconnfd
+            FD_SET(connfd, &p->read_set);
 
             /* Update max descriptor and pool highwater mark */
-            if (connfd > p->maxfd) //line:conc:echoservers:beginmaxfd
-            { p->maxfd = connfd; } //line:conc:echoservers:endmaxfd
+            if (connfd > p->maxfd)
+            { p->maxfd = connfd; }
 
-            if (i > p->maxi)       //line:conc:echoservers:beginmaxi
-            { p->maxi = i; }       //line:conc:echoservers:endmaxi
+            if (i > p->maxi)
+            { p->maxi = i; }
 
             break;
         }
@@ -100,33 +89,31 @@ void add_client(int connfd, pool *p)
 void check_clients(pool *p)
 {
     int i, connfd, n;
-    char buf[MAXLINE];
-    rio_t rio;
+    char buf[BUFSIZE];
 
     for (i = 0; (i <= p->maxi) && (p->nready > 0); i++)
     {
         connfd = p->clientfd[i];
-        rio = p->clientrio[i];
 
         /* If the descriptor is ready, echo a text line from it */
         if ((connfd > 0) && (FD_ISSET(connfd, &p->ready_set)))
         {
             p->nready--;
 
-            if ((n = Rio_readlineb(&rio, buf, MAXLINE)) != 0)
+            if ((n = read(connfd, buf, BUFSIZE)) != 0)
             {
-                byte_cnt += n; //line:conc:echoservers:beginecho
+                byte_cnt += n;
                 printf("Server received %d (%d total) bytes on fd %d\n",
                        n, byte_cnt, connfd);
-                Rio_writen(connfd, buf, n); //line:conc:echoservers:endecho
+                write(connfd, buf, n);
             }
 
             /* EOF detected, remove descriptor from pool */
             else
             {
-                close(connfd); //line:conc:echoservers:closeconnfd
-                FD_CLR(connfd, &p->read_set); //line:conc:echoservers:beginremove
-                p->clientfd[i] = -1;          //line:conc:echoservers:endremove
+                close(connfd);
+                FD_CLR(connfd, &p->read_set);
+                p->clientfd[i] = -1;
             }
         }
     }
@@ -136,10 +123,8 @@ void check_clients(pool *p)
 int main(int argc, char *argv[])
 {
     int listen_sock, client_sock;
-    ssize_t readret;
     socklen_t cli_size;
     struct sockaddr_in addr, cli_addr;
-    char buf[BUF_SIZE];
     static pool conn_pool;
 
     fprintf(stdout, "----- Echo Server -----\n");
@@ -183,14 +168,14 @@ int main(int argc, char *argv[])
         cli_size = sizeof(cli_addr);
 
         /* If listening descriptor ready, add new client to conn_pool */
-        if (FD_ISSET(listen_sock, &conn_pool.ready_set))   //line:conc:echoservers:listenfdready
+        if (FD_ISSET(listen_sock, &conn_pool.ready_set))
         {
-            client_sock = accept(listen_sock, (struct sockaddr *)&cli_addr, &cli_size); //line:conc:echoservers:accept
-            add_client(client_sock, &conn_pool); //line:conc:echoservers:addclient
+            client_sock = accept(listen_sock, (struct sockaddr *)&cli_addr, &cli_size);
+            add_client(client_sock, &conn_pool);
         }
 
         /* Echo a text line from each ready connected descriptor */
-        check_clients(&conn_pool); //line:conc:echoservers:checkclients
+        check_clients(&conn_pool);
     }
 
     close_socket(listen_sock);
