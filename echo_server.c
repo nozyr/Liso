@@ -19,7 +19,7 @@
 #include <sys/socket.h>
 #include <unistd.h>
 
-#define ECHO_PORT 9999
+// #define ECHO_PORT 9999
 #define BUFSIZE 8192
 
 int byte_cnt = 0;
@@ -122,10 +122,12 @@ void check_clients(pool *p)
 
 int main(int argc, char *argv[])
 {
-    int listen_sock, client_sock;
+    int listen_sock, client_sock, port;
     socklen_t cli_size;
     struct sockaddr_in addr, cli_addr;
     static pool conn_pool;
+
+    port = atoi(argv[1]);
 
     fprintf(stdout, "----- Echo Server -----\n");
 
@@ -137,7 +139,7 @@ int main(int argc, char *argv[])
     }
 
     addr.sin_family = AF_INET;
-    addr.sin_port = htons(ECHO_PORT);
+    addr.sin_port = htons(port);
     addr.sin_addr.s_addr = INADDR_ANY;
 
     /* servers bind sockets to ports---notify the OS they accept connections */
