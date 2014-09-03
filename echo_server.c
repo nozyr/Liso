@@ -18,6 +18,7 @@
 #include <string.h>
 #include <sys/socket.h>
 #include <unistd.h>
+#include <errno.h>
 
 // #define ECHO_PORT 9999
 #define BUFSIZE 4096
@@ -90,7 +91,6 @@ void check_clients(pool *p)
 {
     int i, connfd, n;
     char buf[BUFSIZE];
-    // char* sendbuf;
 
     for (i = 0; (i <= p->maxi) && (p->nready > 0); i++)
     {
@@ -104,7 +104,7 @@ void check_clients(pool *p)
             if ((n = recv(connfd, buf, BUFSIZE, MSG_DONTWAIT)) > 0)
             {
                 // printf("receive %d bytes on port %d\n", n, connfd);
-                write(connfd, buf, n);
+                send(connfd, buf, n, 0);
             }
 
             /* EOF detected, remove descriptor from pool */
@@ -113,6 +113,11 @@ void check_clients(pool *p)
                 close(connfd);
                 FD_CLR(connfd, &p->read_set);
                 p->clientfd[i] = -1;
+            }
+
+            if (n < 0)
+            {
+                printf("%s\n", strerror(errno));
             }
         }
     }
