@@ -31,7 +31,7 @@ typedef struct
     fd_set read_set;      // the set prepared for select()
     fd_set ready_set;     // the set that actually set as select() parameter
     int nconn;            // the number of connection ready to read
-    int ndp;              // the (number of file descriptor stored in pool) - 1
+    int ndp;              // the (mas index of descriptor stored in pool) - 1
     int clientfd[FD_SETSIZE];  // store the file descriptor
 } pool;
 
@@ -64,16 +64,12 @@ void add_conn(int connfd, pool *p)
     int i;
     p->nconn--;
 
-    for (i = 0; i < FD_SETSIZE; i++)  /* Find an available slot */
         if (p->clientfd[i] < 0)
         {
-            /* Add connected descriptor to the pool */
             p->clientfd[i] = connfd;
 
-            /* Add the descriptor to descriptor set */
             FD_SET(connfd, &p->read_set);
 
-            /* Update max descriptor and pool highwater mark */
             if (connfd > p->maxfd)
             { p->maxfd = connfd; }
 
@@ -83,7 +79,7 @@ void add_conn(int connfd, pool *p)
             break;
         }
 
-    if (i == FD_SETSIZE) /* Couldn't find an empty slot */
+    if (i == FD_SETSIZE)
     { fprintf(stderr,"add_conn error: Too many clients"); }
 }
 
@@ -96,7 +92,6 @@ void echo(pool *p)
     {
         connfd = p->clientfd[i];
 
-        /* If the descriptor is ready, echo a text line from it */
         if ((connfd > 0) && (FD_ISSET(connfd, &p->ready_set)))
         {
             p->nconn--;
@@ -107,7 +102,6 @@ void echo(pool *p)
                 send(connfd, buf, n, 0);
             }
 
-            /* EOF detected, remove descriptor from pool */
             if (n == 0)
             {
                 close(connfd);
@@ -135,7 +129,6 @@ int main(int argc, char *argv[])
 
     fprintf(stdout, "----- Echo Server -----\n");
 
-    /* all networked programs must create a socket */
     if ((listen_sock = socket(PF_INET, SOCK_STREAM, 0)) == -1)
     {
         fprintf(stderr, "Failed creating socket.\n");
@@ -146,7 +139,6 @@ int main(int argc, char *argv[])
     addr.sin_port = htons(port);
     addr.sin_addr.s_addr = INADDR_ANY;
 
-    /* servers bind sockets to ports---notify the OS they accept connections */
     if (bind(listen_sock, (struct sockaddr *) &addr, sizeof(addr)))
     {
         close_socket(listen_sock);
@@ -164,23 +156,19 @@ int main(int argc, char *argv[])
 
     init_pool(listen_sock, &conn_pool);
 
-    /* finally, loop waiting for input and then write it back */
     while (1)
     {
-        /* Wait for listening/connected descriptor(s) to become ready */
         conn_pool.ready_set = conn_pool.read_set;
         conn_pool.nconn = select(conn_pool.maxfd + 1, &conn_pool.ready_set, NULL, NULL, NULL);
 
         conn_size = sizeof(cli_addr);
 
-        /* If listening descriptor ready, add new client to conn_pool */
         if (FD_ISSET(listen_sock, &conn_pool.ready_set))
         {
             client_sock = accept(listen_sock, (struct sockaddr *)&cli_addr, &conn_size);
             add_conn(client_sock, &conn_pool);
         }
 
-        /* Echo a text line from each ready connected descriptor */
         echo(&conn_pool);
     }
 
