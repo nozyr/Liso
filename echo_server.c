@@ -48,9 +48,10 @@ int close_socket(int sock)
 
 void init_pool(int listenfd, pool *p)
 {
+    int i;
     p->ndp = -1;
 
-    for (int i = 0; i < FD_SETSIZE; i++)
+    for (i = 0; i < FD_SETSIZE; i++)
     { p->clientfd[i] = -1; }
 
     p->maxfd = listenfd;
@@ -60,9 +61,10 @@ void init_pool(int listenfd, pool *p)
 
 void add_conn(int connfd, pool *p)
 {
+    int i;
     p->nconn--;
 
-    for (int i = 0; i < FD_SETSIZE; i++)
+    for (i = 0; i < FD_SETSIZE; i++)
     {
         if (p->clientfd[i] < 0)
         {
@@ -86,10 +88,10 @@ void add_conn(int connfd, pool *p)
 
 void echo(pool *p)
 {
-    int connfd, recv_byte_n;
+    int i, connfd, recv_byte_n;
     char buf[BUFSIZE];
 
-    for (int i = 0; (i <= p->ndp) && (p->nconn > 0); i++)
+    for (i = 0; (i <= p->ndp) && (p->nconn > 0); i++)
     {
         connfd = p->clientfd[i];
 
