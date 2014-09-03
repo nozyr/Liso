@@ -1,0 +1,9 @@
+On the new version of the cp1_checker.py, the timeout become a issue. The timeout error triggered or not strongly depend on the number of bytes transfered at one time. If I have the cp1_checker.py running with the parameter as below:
+
+python cp1_checker.py localhost 3214 10 15 300000 20
+
+The timeout error would be triggered from time to time. But if I changed the parameter as below:
+
+python cp1_checker.py localhost 3214 10 15 200000 20
+
+The timeout error would not be triggered. One of the way to walk around the timeout error is to increase the buffer size, therefore reduce the times need to echo data back. But this method does not solve the problem completely since if the number of bytes increase the timeout error would still be triggered.

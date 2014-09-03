@@ -21,18 +21,18 @@
 #include <errno.h>
 
 // #define ECHO_PORT 9999
-#define BUFSIZE 4096
+#define BUFSIZE 100000
 
 // int byte_cnt = 0;
 
 typedef struct
 {
-    int maxfd;
-    fd_set read_set;
-    fd_set ready_set;
-    int nready;
-    int maxi;
-    int clientfd[FD_SETSIZE];
+    int maxfd;            // record the file descriptor with highest index
+    fd_set read_set;      // the set prepared for select()
+    fd_set ready_set;     // the set that actually set as select() parameter
+    int nconn;            // the number of connection ready to read
+    int ndp;              // the (number of file descriptor stored in pool) - 1
+    int clientfd[FD_SETSIZE];  // store the file descriptor
 } pool;
 
 int close_socket(int sock)
@@ -49,7 +49,7 @@ int close_socket(int sock)
 void init_pool(int listenfd, pool *p)
 {
     int i;
-    p->maxi = -1;
+    p->ndp = -1;
 
     for (i = 0; i < FD_SETSIZE; i++)
     { p->clientfd[i] = -1; }
@@ -59,10 +59,10 @@ void init_pool(int listenfd, pool *p)
     FD_SET(listenfd, &p->read_set);
 }
 
-void add_client(int connfd, pool *p)
+void add_conn(int connfd, pool *p)
 {
     int i;
-    p->nready--;
+    p->nconn--;
 
     for (i = 0; i < FD_SETSIZE; i++)  /* Find an available slot */
         if (p->clientfd[i] < 0)
@@ -77,31 +77,31 @@ void add_client(int connfd, pool *p)
             if (connfd > p->maxfd)
             { p->maxfd = connfd; }
 
-            if (i > p->maxi)
-            { p->maxi = i; }
+            if (i > p->ndp)
+            { p->ndp = i; }
 
             break;
         }
 
     if (i == FD_SETSIZE) /* Couldn't find an empty slot */
-    { fprintf(stderr,"add_client error: Too many clients"); }
+    { fprintf(stderr,"add_conn error: Too many clients"); }
 }
 
-void check_clients(pool *p)
+void echo(pool *p)
 {
     int i, connfd, n;
     char buf[BUFSIZE];
 
-    for (i = 0; (i <= p->maxi) && (p->nready > 0); i++)
+    for (i = 0; (i <= p->ndp) && (p->nconn > 0); i++)
     {
         connfd = p->clientfd[i];
 
         /* If the descriptor is ready, echo a text line from it */
         if ((connfd > 0) && (FD_ISSET(connfd, &p->ready_set)))
         {
-            p->nready--;
+            p->nconn--;
 
-            if ((n = recv(connfd, buf, BUFSIZE, MSG_DONTWAIT)) > 0)
+            while ((n = recv(connfd, buf, BUFSIZE, MSG_DONTWAIT)) > 0)
             {
                 // printf("receive %d bytes on port %d\n", n, connfd);
                 send(connfd, buf, n, 0);
@@ -115,10 +115,10 @@ void check_clients(pool *p)
                 p->clientfd[i] = -1;
             }
 
-            if (n < 0)
-            {
-                printf("%s\n", strerror(errno));
-            }
+            // if (n < 0)
+            // {
+            //     printf("%s\n", strerror(errno));
+            // }
         }
     }
 }
@@ -127,7 +127,7 @@ void check_clients(pool *p)
 int main(int argc, char *argv[])
 {
     int listen_sock, client_sock, port;
-    socklen_t cli_size;
+    socklen_t conn_size;
     struct sockaddr_in addr, cli_addr;
     static pool conn_pool;
 
@@ -169,19 +169,19 @@ int main(int argc, char *argv[])
     {
         /* Wait for listening/connected descriptor(s) to become ready */
         conn_pool.ready_set = conn_pool.read_set;
-        conn_pool.nready = select(conn_pool.maxfd + 1, &conn_pool.ready_set, NULL, NULL, NULL);
+        conn_pool.nconn = select(conn_pool.maxfd + 1, &conn_pool.ready_set, NULL, NULL, NULL);
 
-        cli_size = sizeof(cli_addr);
+        conn_size = sizeof(cli_addr);
 
         /* If listening descriptor ready, add new client to conn_pool */
         if (FD_ISSET(listen_sock, &conn_pool.ready_set))
         {
-            client_sock = accept(listen_sock, (struct sockaddr *)&cli_addr, &cli_size);
-            add_client(client_sock, &conn_pool);
+            client_sock = accept(listen_sock, (struct sockaddr *)&cli_addr, &conn_size);
+            add_conn(client_sock, &conn_pool);
         }
 
         /* Echo a text line from each ready connected descriptor */
-        check_clients(&conn_pool);
+        echo(&conn_pool);
     }
 
     close_socket(listen_sock);
