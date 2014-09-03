@@ -49,13 +49,19 @@ int close_socket(int sock)
 void init_pool(int listenfd, pool *p)
 {
     int i;
+
     p->ndp = -1;
+    p->nconn = 0;
 
     for (i = 0; i < FD_SETSIZE; i++)
-    { p->clientfd[i] = -1; }
+    {
+        p->clientfd[i] = -1;
+    }
+
+    FD_ZERO(&p->ready_set);
+    FD_ZERO(&p->read_set);
 
     p->maxfd = listenfd;
-    FD_ZERO(&p->read_set);
     FD_SET(listenfd, &p->read_set);
 }
 
@@ -88,15 +94,19 @@ void add_conn(int connfd, pool *p)
 
 void echo(pool *p)
 {
-    int i, connfd, recv_byte_n;
-    char buf[BUFSIZE];
+    int i;
 
     for (i = 0; (i <= p->ndp) && (p->nconn > 0); i++)
     {
+        int connfd;
+
         connfd = p->clientfd[i];
 
         if ((connfd > 0) && (FD_ISSET(connfd, &p->ready_set)))
         {
+            int recv_byte_n;
+            char buf[BUFSIZE];
+
             p->nconn--;
 
             while ((recv_byte_n = recv(connfd, buf, BUFSIZE, MSG_DONTWAIT)) > 0)
@@ -125,7 +135,7 @@ int main(int argc, char *argv[])
 {
     int listen_sock, client_sock, port;
     socklen_t conn_size;
-    struct sockaddr_in addr, cli_addr;
+    struct sockaddr_in host_addr, cli_addr;
     static pool conn_pool;
 
     port = atoi(argv[1]);
@@ -138,11 +148,11 @@ int main(int argc, char *argv[])
         return EXIT_FAILURE;
     }
 
-    addr.sin_family = AF_INET;
-    addr.sin_port = htons(port);
-    addr.sin_addr.s_addr = INADDR_ANY;
+    host_addr.sin_family = AF_INET;
+    host_addr.sin_port = htons(port);
+    host_addr.sin_addr.s_addr = INADDR_ANY;
 
-    if (bind(listen_sock, (struct sockaddr *) &addr, sizeof(addr)))
+    if (bind(listen_sock, (struct sockaddr *) &host_addr, sizeof(host_addr)))
     {
         close_socket(listen_sock);
         fprintf(stderr, "Failed binding socket.\n");
