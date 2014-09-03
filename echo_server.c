@@ -48,10 +48,9 @@ int close_socket(int sock)
 
 void init_pool(int listenfd, pool *p)
 {
-    int i;
     p->ndp = -1;
 
-    for (i = 0; i < FD_SETSIZE; i++)
+    for (int i = 0; i < FD_SETSIZE; i++)
     { p->clientfd[i] = -1; }
 
     p->maxfd = listenfd;
@@ -61,9 +60,10 @@ void init_pool(int listenfd, pool *p)
 
 void add_conn(int connfd, pool *p)
 {
-    int i;
     p->nconn--;
 
+    for (int i = 0; i < FD_SETSIZE; i++)
+    {
         if (p->clientfd[i] < 0)
         {
             p->clientfd[i] = connfd;
@@ -81,14 +81,15 @@ void add_conn(int connfd, pool *p)
 
     if (i == FD_SETSIZE)
     { fprintf(stderr,"add_conn error: Too many clients"); }
+    }
 }
 
 void echo(pool *p)
 {
-    int i, connfd, n;
+    int connfd, recv_byte_n;
     char buf[BUFSIZE];
 
-    for (i = 0; (i <= p->ndp) && (p->nconn > 0); i++)
+    for (int i = 0; (i <= p->ndp) && (p->nconn > 0); i++)
     {
         connfd = p->clientfd[i];
 
@@ -96,13 +97,13 @@ void echo(pool *p)
         {
             p->nconn--;
 
-            while ((n = recv(connfd, buf, BUFSIZE, MSG_DONTWAIT)) > 0)
+            while ((recv_byte_n = recv(connfd, buf, BUFSIZE, MSG_DONTWAIT)) > 0)
             {
                 // printf("receive %d bytes on port %d\n", n, connfd);
-                send(connfd, buf, n, 0);
+                send(connfd, buf, recv_byte_n, 0);
             }
 
-            if (n == 0)
+            if (recv_byte_n == 0)
             {
                 close(connfd);
                 FD_CLR(connfd, &p->read_set);
