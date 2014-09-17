@@ -6,8 +6,7 @@
 #include "parse.h"
 #include "response.h"
 
-typedef struct
-{
+typedef struct {
     int maxfd;            // record the file descriptor with highest index
     fd_set read_set;      // the set prepared for select()
     fd_set ready_set;     // the set that actually set as select() parameter
@@ -17,7 +16,9 @@ typedef struct
 } pool;
 
 void init_pool(int listenfd, pool *p);
+
 void add_conn(int connfd, pool *p);
+
 void conn_handle(pool *p);
 
 #endif

@@ -7,5 +7,8 @@
 #include <unistd.h>
 #include "socket.h"
 #include "conn.h"
+#include "daemon.h"
+#include "log.h"
+#include "io.h"
 
 #endif

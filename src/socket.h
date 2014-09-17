@@ -3,6 +3,7 @@
 
 #include <unistd.h>
 #include <stdio.h>
+#include "log.h"
 
 int close_socket(int sock);
 
