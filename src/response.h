@@ -6,13 +6,9 @@
 #include "log.h"
 #include "parse.h"
 #include <sys/stat.h>
+#include <time.h>
+#include <stdio.h>
 
-void pagersp(int connfd, char *page);
-
-void addstatus(char *header, status_t status);
-
-void addfield(char *header, field_t field);
-
-int response(int connfd, response_t response);
+int buildresp(int connfd, response_t *resp);
 
 #endif

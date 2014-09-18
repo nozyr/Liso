@@ -21,45 +21,42 @@ void conn_handle(pool *p) {
     int i;
 
     for (i = 0; (i <= p->ndp) && (p->nconn > 0); i++) {
-        int connfd;
+        int connfd, n;
         response_t resp;
 
-        responseinit(resp);
+        responseinit(&resp);
 
         connfd = p->clientfd[i];
 
         if ((connfd > 0) && (FD_ISSET(connfd, &p->ready_set))) {
+            logging("--------------start handling connection from at socket %d------------\n", connfd);
             /*parse the request here*/
-            if (parseRequest(connfd, resp) == -1) {
-                response(connfd, resp);
-                continue;
+            p->nconn--;
+            logging("Start Parsing Request\n");
+            if (parseRequest(connfd, &resp) < 0) {
+                logging("Parsing request error\n");
+                buildresp(connfd, &resp);
             }
 
-            if (!resp.version) {
-                response(connfd, resp);
-                continue;
+            if (resp.path) {
+                free(resp.path);
             }
-
-            switch (resp.method) {
-                case GET:
-                    break;
-                case HEAD:
-                    break;
-                case POST:
-                    break;
-                default:
-                    break;
-            }
-            /*send the response here*/
-            response(connfd, resp);
 
             if (resp.error) {
                 /*close the connection*/
+                logging("close connection %d\n", connfd);
                 close(connfd);
+                FD_CLR(connfd, &p->read_set);
 
                 /*remove the fd from the pool*/
                 p->clientfd[i] = -1;
+                continue;
             }
+
+            /*send the response here*/
+            logging("Start building the response\n");
+            buildresp(connfd, &resp);
+            logging("----------------connection handling finished----------------------\n");
         }
     }
 }

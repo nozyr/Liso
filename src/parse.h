@@ -4,6 +4,7 @@
 #include <unistd.h>
 #include <stdio.h>
 #include <string.h>
+#include <errno.h>
 #include "log.h"
 #include "io.h"
 
@@ -17,25 +18,35 @@ typedef enum {
     CONNECTION_CLOSE, CONNECTION_ALIVE, TIME, SERVER, CONTENT_LEN, CONTENT_TYP, LAST_MDY
 } field_t;
 
-typedef enum{
-    true, false
-}bool;
+typedef enum {
+    false,true
+}
+bool;
 
-typedef enum{
+typedef enum  {
+    HTML, CSS, JPEG, PNG, GIF, OTHER,
+}MIMEType;
+
+typedef enum {
     GET, HEAD, POST, NOT_SUPPORT
-}method_t;
+} method_t;
 
-typedef struct{
+typedef struct {
     bool version;
     bool error;
     method_t method;
     status_t status;
+    off_t content_len;
+    char *path;
     char uri[BUFSIZE];
     char header[BUFSIZE];
-}response_t;
+    char page[BUFSIZE];
+    MIMEType filetype;
+    time_t last_md;
+} response_t;
 
-int parseRequest(int connfd, response_t response);
+int parseRequest(int connfd, response_t *resp);
 
-void responseinit(response_t response);
+void responseinit(response_t *resp);
 
 #endif
