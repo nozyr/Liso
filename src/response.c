@@ -74,6 +74,7 @@ int buildresp(int connfd, response_t *resp) {
             logging("Writing header to socket %d failed\n", connfd);
         }
         close(pagefd);
+        free(content);
     }
 
     logging("Responding finished\n");

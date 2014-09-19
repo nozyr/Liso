@@ -33,13 +33,12 @@ void conn_handle(pool *p) {
             /*parse the request here*/
             p->nconn--;
             logging("Start Parsing Request\n");
-            printf("start Parsing Request\n");
             if (parseRequest(connfd, &resp) < 0) {
                 logging("Parsing request error\n");
                 buildresp(connfd, &resp);
             }
 
-            if (resp.error) {
+            if (resp.error == true) {
                 /*close the connection*/
                 logging("close connection %d\n", connfd);
                 close(connfd);
@@ -52,13 +51,12 @@ void conn_handle(pool *p) {
 
             /*send the response here*/
             logging("Start building the response\n");
-            printf("Start Building the response\n");
             buildresp(connfd, &resp);
 
             if (resp.path) {
                 free(resp.path);
             }
-            logging("----------------connection handling finished----------------------\n");
+            logging("-------------------connection handling finished----------------------\n");
         }
     }
 }
@@ -80,6 +78,8 @@ void add_conn(int connfd, pool *p) {
             break;
         }
 
-        if (i == FD_SETSIZE) {logging("add_conn error: Too many clients");}
+        if (i == FD_SETSIZE) {
+            logging("add_conn error: Too many clients");
+        }
     }
 }
