@@ -35,8 +35,13 @@ void conn_handle(pool *p) {
             logging("Start Parsing Request\n");
             if (parseRequest(connfd, &resp) < 0) {
                 logging("Parsing request error\n");
-                buildresp(connfd, &resp);
+//                buildresp(connfd, &resp);
             }
+            else{
+                logging("Start building the response\n");
+            }
+            /*send the response here*/
+            buildresp(connfd, &resp);
 
             if (resp.error == true) {
                 /*close the connection*/
@@ -48,10 +53,6 @@ void conn_handle(pool *p) {
                 p->clientfd[i] = -1;
                 continue;
             }
-
-            /*send the response here*/
-            logging("Start building the response\n");
-            buildresp(connfd, &resp);
 
             if (resp.path) {
                 free(resp.path);

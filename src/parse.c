@@ -92,7 +92,7 @@ int parseRequest(int connfd, response_t *resp) {
 
 static int parseUri(char *uri, char *page) {
     memset(page, 0, BUFSIZE);
-    int status, temport;
+    int status = 0, temport;
     char host[BUFSIZE];
     logging("Parsing Uri..............\n");
 

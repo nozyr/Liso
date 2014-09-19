@@ -1,11 +1,49 @@
 #include "response.h"
-
+#include "parse.h"
 
 #define BUFSIZE 8193
 void addstatus(char *header, status_t status);
 void addfield(response_t *resp, field_t field);
 void getFiletype(response_t *resp);
 char* getContentType(MIMEType type);
+
+static char* Page_not_found_response =
+        "<!DOCTYPE HTML PUBLIC \"-//W3C//DTD HTML 4.01 Transitional//EN\" \"http://www.w3.org/TR/html4/loose.dtd\">\n"
+                "<html>\n"
+                "<head>\n"
+                "<meta http-equiv=\"Content-type\" content=\"text/html;charset=UTF-8\">\n"
+                "<title>404 - Document not found</title>\n"
+                "</head>\n"
+                "<body>\n"
+                "<h1>Document not found</h1>\n"
+                "\n"
+                "<p>The requested address (URL) was not found on this server.</p><p>You may have used an outdated link or may have typed the address incorrectly.</p>\n"
+                "<hr>\n"
+                "\n"
+                "<!-- IE: document must be at least 512 bytes --> \n"
+                "<!--\n"
+                "<p>\n"
+                "Lorem ipsum dolor sit amet, consectetur adipisicing elit,sadfasdfasdf \n"
+                "sed do eiusmod tempor incididunt ut labore et dolore magna aliqua. \n"
+                "Ut enim ad minim veniam, quis nostrud exercitation ullamco laboris \n"
+                "nisi ut aliquip ex ea commodo consequat. Duis aute irure dolor in \n"
+                "reprehenderit in voluptate velit esse cillum dolore eu fugiat nulla \n"
+                "pariatur. Excepteur sint occaecat cupidatat non proident, sunt in \n"
+                "culpa qui officia deserunt mollit anim id est laborum.asdfadfsdafsadf\n"
+                "</p>\n"
+                "<p>\n"
+                "Lorem ipsum dolor sit amet, consectetur adipisicing elit,asdfadfsadf \n"
+                "sed do eiusmod tempor incididunt ut labore et dolore magna aliqua. \n"
+                "Ut enim ad minim veniam, quis nostrud exercitation ullamco laboris \n"
+                "nisi ut aliquip ex ea commodo consequat. Duis aute irure dolor in \n"
+                "reprehenderit in voluptate velit esse cillum dolore eu fugiat nulla \n"
+                "pariatur. Excepteur sint occaecat cupidatat non proident, sunt in \n"
+                "culpa qui officia deserunt mollit anim id est laboruasdfasdfasdfasm.\n"
+                "</p>\n"
+                "-->\n"
+                "\n"
+                "</body>\n"
+                "</html>";
 
 void buildheader(response_t *resp) {
     logging("Start Building the header\n");
@@ -40,9 +78,12 @@ int buildresp(int connfd, response_t *resp) {
     logging("The requested file is located at %s\n", resp->path);
 
     if (stat(resp->path, &fileStat) == -1) {
-        addstatus(resp->header, NOT_FOUND);
-        addfield(resp, CONNECTION_CLOSE);
+        resp->status = NOT_FOUND;
+        resp->content_len = strlen(Page_not_found_response);
+        resp->filetype = HTML;
+        buildheader(resp);
         write(connfd, resp->header, strlen(resp->header));
+        write(connfd, Page_not_found_response, strlen(Page_not_found_response));
         logging("file %s don't exists\n", resp->path);
         return 0;
     }
@@ -60,7 +101,6 @@ int buildresp(int connfd, response_t *resp) {
     logging("Header Sending Finished\n");
     if (resp->method != HEAD) {
         logging("Now Sending the Content\n");
-        //todo write page content
         char *content = malloc(resp->content_len);
 
         int pagefd = open(resp->path, O_RDONLY);
