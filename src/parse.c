@@ -31,13 +31,10 @@ int parseRequest(int connfd, response_t *resp) {
 
     if (!strstr(version, "HTTP/1.1")) {
         logging("Http version not supported! Stop parsing!!\n");
-        resp->version = false;
         resp->error = true;
         resp->status = HTTP_VERSION_NOT_SUPPORTED;
         return -1;
     }
-
-    resp->version = true;
 
     logging("Start Parsing uri: %s\n", resp->uri);
     parseUri(resp->uri, resp->page);
@@ -101,7 +98,7 @@ static int parseUri(char *uri, char *page) {
         else if (sscanf(uri, "http://%8192[^:]:%i[^\n]", host, &temport) == 2) {status = 3;}
         else if (sscanf(uri, "http://%8192[^/]", host) == 1) {status = 4;}
     }
-    else if (!strstr(uri, "/")) {
+    else if (!strcmp(uri, "/")) {
         sprintf(page, "/");
     }
     else {
@@ -128,7 +125,6 @@ void responseinit(response_t *resp) {
     resp->status = OK;
     resp->content_len = 0;
     resp->error = false;
-    resp->version = true;
     resp->path = NULL;
     resp->filetype = OTHER;
     memset(resp->header, 0, BUFSIZE);

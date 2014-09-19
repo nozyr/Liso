@@ -32,7 +32,6 @@ typedef enum {
 } method_t;
 
 typedef struct {
-    bool version;
     bool error;
     method_t method;
     status_t status;
