@@ -1,7 +1,6 @@
 #ifndef CONN_H
 #define CONN_H
 
-#include <vproc.h>
 #include <stdio.h>
 #include "parse.h"
 #include "response.h"
