@@ -9,23 +9,25 @@ int parseRequest(int connfd, response_t *resp) {
     bool isPost = false;
 
     if ((n = readline(connfd, buf, BUFSIZE)) <= 0) {
-        if(n == -1)
-        {
+        if (n == -1) {
             resp->error = true;
             resp->status = INTERNAL_SERVER_ERROR;
             logging("Can not read from socket %d\n", connfd);
             logging("%s", strerror(errno));
             return -1;
         }
-        if(n == 0)
-        {
+        if (n == 0) {
             resp->error = true;
             return 0;
         }
     }
 
     logging("The request status is %s\n", buf);
-    sscanf(buf, "%s %s %s", method, resp->uri, version);
+    if (sscanf(buf, "%s %s %s", method, resp->uri, version) < 3) {
+        resp->error = true;
+        resp->status = BAD_REQUEST;
+        return -1;
+    }
 
     if (!strstr(version, "HTTP/1.1")) {
         logging("Http version not supported! Stop parsing!!\n");
@@ -62,6 +64,7 @@ int parseRequest(int connfd, response_t *resp) {
         char *pos = NULL;
         n = readline(connfd, buf, BUFSIZE);
         logging("%s", buf);
+
         if (isPost == true) {
             pos = strstr(buf, "Content-Length");
 

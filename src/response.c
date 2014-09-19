@@ -88,6 +88,9 @@ void addstatus(char *header, status_t status) {
         case OK:
             statusl = "HTTP/1.1 200 OK\r\n";
             break;
+        case BAD_REQUEST:
+            statusl = "HTTP/1.1 400 BAD REQUEST\r\n";
+            break;
         case NOT_FOUND:
             statusl = "HTTP/1.1 404 NOT FOUND\r\n";
             break;
