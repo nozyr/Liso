@@ -37,7 +37,11 @@ int parseRequest(int connfd, response_t *resp) {
     }
 
     logging("Start Parsing uri: %s\n", resp->uri);
-    parseUri(resp->uri, resp->page);
+    if (parseUri(resp->uri, resp->page) < 0) {
+        resp->error = true;
+        resp->status = BAD_REQUEST;
+        return -1;
+    }
 
     if (!strcmp(method, "GET")) {
         resp->method = GET;
@@ -97,9 +101,11 @@ static int parseUri(char *uri, char *page) {
         else if (sscanf(uri, "http://%8192[^/]/%8192[^\n]", host, page) == 2) {status = 2;}
         else if (sscanf(uri, "http://%8192[^:]:%i[^\n]", host, &temport) == 2) {status = 3;}
         else if (sscanf(uri, "http://%8192[^/]", host) == 1) {status = 4;}
+        else {return -1;}
     }
-    else if (!strcmp(uri, "/")) {
-        sprintf(page, "/");
+    else if (uri[0] != '/') {
+        logging("The uri %s is invalid\n", uri);
+        return -1;
     }
     else {
         strcpy(page, uri);
