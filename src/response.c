@@ -11,8 +11,9 @@ void buildheader(response_t *resp) {
     logging("Start Building the header\n");
 
     addstatus(resp->header, resp->status);
-    addfield(resp, SERVER);
     addfield(resp, TIME);
+    addfield(resp, CONNECTION_ALIVE);
+    addfield(resp, SERVER);
     addfield(resp, CONTENT_TYP);
     addfield(resp, CONTENT_LEN);
     addfield(resp, LAST_MDY);
@@ -125,7 +126,7 @@ void addfield(response_t *resp, field_t field) {
             fieldl = "connection: close\r\n";
             break;
         case CONNECTION_ALIVE:
-            fieldl = "connection: Keep-Alive\r\n";
+            fieldl = "connection: Keep-Alive\r\nKeep_Alive: Test\r\n";
             break;
         case TIME:
             cur_gmtime = *gmtime(&current_time);
