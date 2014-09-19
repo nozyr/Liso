@@ -41,7 +41,7 @@ void daemonize(char *lock_file) {
 
     /*Write to lockfile*/
     sprintf(log_start, "Liso start at pid %d\n", getpid());
-    log_start_len = strlen(lockfd);
+    log_start_len = strlen(log_start);
     if (log_start_len != write(lockfd, log_start, log_start_len)) {
         printf("Writing to log file error");
         exit(EXIT_FAILURE);

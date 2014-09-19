@@ -153,7 +153,7 @@ void addfield(response_t *resp, field_t field) {
             break;
     }
 
-    logging("Field line is %s\n", fieldl);
+    logging("%s", fieldl);
     strcat(resp->header, fieldl);
 }
 

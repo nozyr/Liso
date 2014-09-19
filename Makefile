@@ -15,12 +15,11 @@ LFLAGS=-lssl
 
 OBJECTS = liso.o
 OBJECTS += conn.o
-OBJECTS += daemon.o
 OBJECTS += log.o
-OBJECTS += parse.o
 OBJECTS += parse.o
 OBJECTS += response.o
 OBJECTS += socket.o
+OBJECTS += io.o
 
 default: lisod
 
