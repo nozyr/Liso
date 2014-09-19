@@ -5,7 +5,7 @@ static int parseUri(char *uri, char *page);
 
 int parseRequest(int connfd, response_t *resp) {
     char buf[BUFSIZE], method[BUFSIZE], version[BUFSIZE];
-    int n, post_len = 0;
+    int n, post_len = -1;
     bool isPost = false;
 
     if ((n = readline(connfd, buf, BUFSIZE)) <= 0) {
@@ -27,7 +27,6 @@ int parseRequest(int connfd, response_t *resp) {
     logging("The request status is %s\n", buf);
     sscanf(buf, "%s %s %s", method, resp->uri, version);
 
-//    logging("The version is %s\n", version);
     if (!strstr(version, "HTTP/1.1")) {
         logging("Http version not supported! Stop parsing!!\n");
         resp->version = false;
@@ -54,6 +53,8 @@ int parseRequest(int connfd, response_t *resp) {
     else {
         resp->method = NOT_SUPPORT;
         resp->error = true;
+        resp->status = NOT_IMPLEMENTED;
+        return -1;
     }
 
     /*Read the rest of the headers*/
@@ -61,7 +62,7 @@ int parseRequest(int connfd, response_t *resp) {
         char *pos = NULL;
         n = readline(connfd, buf, BUFSIZE);
         logging("%s", buf);
-        if (isPost) {
+        if (isPost == true) {
             pos = strstr(buf, "Content-Length");
 
             if (pos) {
@@ -73,8 +74,13 @@ int parseRequest(int connfd, response_t *resp) {
     logging("finished reading the header\n");
 
     /*if is post method, read the content in the body*/
-    if (isPost && post_len > 0) {
+    if (isPost == true && post_len > 0) {
         read(connfd, buf, post_len);
+    }
+    else if (isPost == true && post_len == -1) {
+        resp->error = true;
+        resp->status = LENGTH_REQUIRED;
+        return -1;
     }
 
     return 1;
