@@ -5,9 +5,11 @@
 #include <stdio.h>
 #include <stdlib.h>
 #include <unistd.h>
+#include <openssl/ssl.h>
+#include "https.h"
 #include "socket.h"
 #include "conn.h"
-#include "daemon.h"
+#include "daemonize.h"
 #include "log.h"
 #include "io.h"
 

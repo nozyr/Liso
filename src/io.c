@@ -46,6 +46,36 @@ int readline(int fd, char *buf, int size) {
     return i;
 }
 
+
+int sslreadline(SSL* client_context, char *buf, int size) {
+    int i;
+
+    for (i = 1; i < size; i++) {
+        char c;
+        ssize_t rc;
+        if ((rc = SSL_read(client_context, &c, 1)) == 1) {
+            *buf++ = c;
+            if (c == '\n') {
+                break;
+            }
+        }
+        else if (rc == 0) {
+            if (i == 1) {
+                return 0;
+            }
+            else {
+                break;
+            }
+        }
+        else {
+            return -1;
+        }
+    }
+
+    *buf = 0;
+    return i;
+}
+
 char *getpath(char *file) {
     char *fullpath;
 

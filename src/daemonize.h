@@ -1,13 +1,14 @@
 #ifndef DAEMON_H
 #define DAEMON_H
 
+#include <fcntl.h>
+#include <signal.h>
 #include <unistd.h>
-#include <stdlib.h>
 #include <sys/stat.h>
-#include <sys/fcntl.h>
 #include <stdio.h>
 #include <string.h>
+#include <stdlib.h>
 
-void daemonize(char *lock_file);
+int daemonize(char *lock_file);
 
 #endif

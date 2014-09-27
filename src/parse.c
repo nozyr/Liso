@@ -3,24 +3,42 @@
 
 static int parseUri(char *uri, char *page);
 
-int parseRequest(int connfd, response_t *resp) {
+int parseRequest(conn_node* node, response_t *resp) {
     char buf[BUFSIZE], method[BUFSIZE], version[BUFSIZE];
     int n, post_len = -1;
     bool isPost = false;
 
-    if ((n = readline(connfd, buf, BUFSIZE)) <= 0) {
-        if (n == -1) {
-            resp->error = true;
-            resp->status = INTERNAL_SERVER_ERROR;
-            logging("Can not read from socket %d\n", connfd);
-            logging("%s", strerror(errno));
-            return -1;
-        }
-        if (n == 0) {
-            resp->error = true;
-            return 0;
+    if(node->isSSL == false){
+        if ((n = readline(node->connfd, buf, BUFSIZE)) <= 0) {
+            if (n == -1) {
+                resp->error = true;
+                resp->status = INTERNAL_SERVER_ERROR;
+                logging("Can not read from socket %d\n", node->connfd);
+                logging("%s", strerror(errno));
+                return -1;
+            }
+            if (n == 0) {
+                resp->error = true;
+                return 0;
+            }
         }
     }
+    else{
+        if ((n = sslreadline(node->context, buf, BUFSIZE)) <= 0) {
+            if (n == -1) {
+                resp->error = true;
+                resp->status = INTERNAL_SERVER_ERROR;
+                logging("Can not read from socket %d\n", node->connfd);
+                logging("%s", strerror(errno));
+                return -1;
+            }
+            if (n == 0) {
+                resp->error = true;
+                return 0;
+            }
+        }
+    }
+
 
     logging("The request status is %s\n", buf);
     if (sscanf(buf, "%s %s %s", method, resp->uri, version) < 3) {
@@ -63,7 +81,7 @@ int parseRequest(int connfd, response_t *resp) {
     /*Read the rest of the headers*/
     do {
         char *pos = NULL;
-        n = readline(connfd, buf, BUFSIZE);
+        n = readline(node->connfd, buf, BUFSIZE);
         logging("%s", buf);
 
         if (isPost == true) {
@@ -79,7 +97,7 @@ int parseRequest(int connfd, response_t *resp) {
 
     /*if is post method, read the content in the body*/
     if (isPost == true && post_len > 0) {
-        read(connfd, buf, post_len);
+        read(node->connfd, buf, post_len);
     }
     else if (isPost == true && post_len == -1) {
         resp->error = true;

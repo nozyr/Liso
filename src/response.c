@@ -9,41 +9,41 @@ char* getContentType(MIMEType type);
 
 static char* Page_not_found_response =
         "<!DOCTYPE HTML PUBLIC \"-//W3C//DTD HTML 4.01 Transitional//EN\" \"http://www.w3.org/TR/html4/loose.dtd\">\n"
-                "<html>\n"
-                "<head>\n"
-                "<meta http-equiv=\"Content-type\" content=\"text/html;charset=UTF-8\">\n"
-                "<title>404 - Document not found</title>\n"
-                "</head>\n"
-                "<body>\n"
-                "<h1>Document not found</h1>\n"
-                "\n"
-                "<p>The requested address (URL) was not found on this server.</p><p>You may have used an outdated link or may have typed the address incorrectly.</p>\n"
-                "<hr>\n"
-                "\n"
-                "<!-- IE: document must be at least 512 bytes --> \n"
-                "<!--\n"
-                "<p>\n"
-                "Lorem ipsum dolor sit amet, consectetur adipisicing elit,sadfasdfasdf \n"
-                "sed do eiusmod tempor incididunt ut labore et dolore magna aliqua. \n"
-                "Ut enim ad minim veniam, quis nostrud exercitation ullamco laboris \n"
-                "nisi ut aliquip ex ea commodo consequat. Duis aute irure dolor in \n"
-                "reprehenderit in voluptate velit esse cillum dolore eu fugiat nulla \n"
-                "pariatur. Excepteur sint occaecat cupidatat non proident, sunt in \n"
-                "culpa qui officia deserunt mollit anim id est laborum.asdfadfsdafsadf\n"
-                "</p>\n"
-                "<p>\n"
-                "Lorem ipsum dolor sit amet, consectetur adipisicing elit,asdfadfsadf \n"
-                "sed do eiusmod tempor incididunt ut labore et dolore magna aliqua. \n"
-                "Ut enim ad minim veniam, quis nostrud exercitation ullamco laboris \n"
-                "nisi ut aliquip ex ea commodo consequat. Duis aute irure dolor in \n"
-                "reprehenderit in voluptate velit esse cillum dolore eu fugiat nulla \n"
-                "pariatur. Excepteur sint occaecat cupidatat non proident, sunt in \n"
-                "culpa qui officia deserunt mollit anim id est laboruasdfasdfasdfasm.\n"
-                "</p>\n"
-                "-->\n"
-                "\n"
-                "</body>\n"
-                "</html>";
+        "<html>\n"
+        "<head>\n"
+        "<meta http-equiv=\"Content-type\" content=\"text/html;charset=UTF-8\">\n"
+        "<title>404 - Document not found</title>\n"
+        "</head>\n"
+        "<body>\n"
+        "<h1>Document not found</h1>\n"
+        "\n"
+        "<p>The requested address (URL) was not found on this server.</p><p>You may have used an outdated link or may have typed the address incorrectly.</p>\n"
+        "<hr>\n"
+        "\n"
+        "<!-- IE: document must be at least 512 bytes --> \n"
+        "<!--\n"
+        "<p>\n"
+        "Lorem ipsum dolor sit amet, consectetur adipisicing elit,sadfasdfasdf \n"
+        "sed do eiusmod tempor incididunt ut labore et dolore magna aliqua. \n"
+        "Ut enim ad minim veniam, quis nostrud exercitation ullamco laboris \n"
+        "nisi ut aliquip ex ea commodo consequat. Duis aute irure dolor in \n"
+        "reprehenderit in voluptate velit esse cillum dolore eu fugiat nulla \n"
+        "pariatur. Excepteur sint occaecat cupidatat non proident, sunt in \n"
+        "culpa qui officia deserunt mollit anim id est laborum.asdfadfsdafsadf\n"
+        "</p>\n"
+        "<p>\n"
+        "Lorem ipsum dolor sit amet, consectetur adipisicing elit,asdfadfsadf \n"
+        "sed do eiusmod tempor incididunt ut labore et dolore magna aliqua. \n"
+        "Ut enim ad minim veniam, quis nostrud exercitation ullamco laboris \n"
+        "nisi ut aliquip ex ea commodo consequat. Duis aute irure dolor in \n"
+        "reprehenderit in voluptate velit esse cillum dolore eu fugiat nulla \n"
+        "pariatur. Excepteur sint occaecat cupidatat non proident, sunt in \n"
+        "culpa qui officia deserunt mollit anim id est laboruasdfasdfasdfasm.\n"
+        "</p>\n"
+        "-->\n"
+        "\n"
+        "</body>\n"
+        "</html>";
 
 void buildheader(response_t *resp) {
     logging("Start Building the header\n");
@@ -61,14 +61,21 @@ void buildheader(response_t *resp) {
     return;
 }
 
-int buildresp(int connfd, response_t *resp) {
+int buildresp(conn_node* node, response_t *resp) {
     struct stat fileStat;
     if (resp->error == true) {
         logging("message error, send connection close\n");
         addstatus(resp->header, resp->status);
         addfield(resp, CONNECTION_CLOSE);
-        if (write(connfd, resp->header, strlen(resp->header)) <= 0) {
-            logging("Writing refusion message failed.\n");
+        if (node->isSSL == false) {
+            if(write(node->connfd, resp->header, strlen(resp->header)) <= 0){
+                logging("Writing refusion message failed.\n");
+            }
+        }
+        else{
+            if(SSL_write(node->context, resp->header, strlen(resp->header)) <= 0){
+                logging("Writing refusion message failed.\n");
+            }
         }
         return 0;
     }
@@ -82,8 +89,15 @@ int buildresp(int connfd, response_t *resp) {
         resp->content_len = strlen(Page_not_found_response);
         resp->filetype = HTML;
         buildheader(resp);
-        write(connfd, resp->header, strlen(resp->header));
-        write(connfd, Page_not_found_response, strlen(Page_not_found_response));
+        if(node->isSSL == false){
+            write(node->connfd, resp->header, strlen(resp->header));
+            write(node->connfd, Page_not_found_response, strlen(Page_not_found_response));
+        }
+        else{
+            SSL_write(node->context, resp->header, strlen(resp->header));
+            SSL_write(node->context, Page_not_found_response, strlen(Page_not_found_response));
+        }
+
         logging("file %s don't exists\n", resp->path);
         return 0;
     }
@@ -94,8 +108,15 @@ int buildresp(int connfd, response_t *resp) {
 
     logging("Header building finished, sending header back\n");
 
-    if (write(connfd, resp->header, strlen(resp->header)) <= 0) {
-        logging("Writing header to socket %d failed\n", connfd);
+    if(node->isSSL == false) {
+        if (write(node->connfd, resp->header, strlen(resp->header)) <= 0) {
+            logging("Writing header to socket %d failed\n", node->connfd);
+        }
+    }
+    else {
+        if(SSL_write(node->context, resp->header, strlen(resp->header))<= 0){
+            logging("Writing header to socket %d failed\n", node->connfd);
+        }
     }
 
     logging("Header Sending Finished\n");
@@ -110,8 +131,16 @@ int buildresp(int connfd, response_t *resp) {
             return 0;
         }
         logging("Reading content from file %s Successed\n", resp->path);
-        if (write(connfd, content, resp->content_len) <= 0){
-            logging("Writing header to socket %d failed\n", connfd);
+
+        if (node->isSSL == false) {
+            if (write(node->connfd, content, resp->content_len) <= 0){
+                logging("Writing header to socket %d failed\n", node->connfd);
+            }
+        }
+        else{
+            if (SSL_write(node->context, content, resp->content_len) <= 0){
+                logging("Writing header to socket %d failed\n", node->connfd);
+            }
         }
         close(pagefd);
         free(content);

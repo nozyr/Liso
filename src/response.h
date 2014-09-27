@@ -8,7 +8,8 @@
 #include <sys/stat.h>
 #include <time.h>
 #include <stdio.h>
+#include <openssl/ssl.h>
 
-int buildresp(int connfd, response_t *resp);
+int buildresp(conn_node* node, response_t *resp);
 
 #endif

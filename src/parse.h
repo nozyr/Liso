@@ -20,8 +20,7 @@ typedef enum {
 
 typedef enum {
     false,true
-}
-bool;
+} bool;
 
 typedef enum  {
     HTML, CSS, JPEG, PNG, GIF, OTHER,
@@ -44,7 +43,15 @@ typedef struct {
     time_t last_md;
 } response_t;
 
-int parseRequest(int connfd, response_t *resp);
+typedef struct _conn_node{
+    int connfd;
+    bool isSSL;
+    SSL* context;
+    struct _conn_node* prev;
+    struct _conn_node* next;
+}conn_node;
+
+int parseRequest(conn_node* node, response_t *resp);
 
 void responseinit(response_t *resp);
 
