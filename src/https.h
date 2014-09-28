@@ -10,6 +10,6 @@
 #include <sys/socket.h>
 #include "log.h"
 
-int sslinit(SSL_CTX* ssl_context, char* private, char* crt);
+SSL_CTX * sslinit(char *key, char *crt);
 
 #endif

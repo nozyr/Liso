@@ -17,7 +17,7 @@ int initIO(char *lock_file, char *www_folder, char *cgi_path) {
 
 }
 
-int readline(int fd, char *buf, int size) {
+int httpreadline(int fd, char *buf, int size) {
     int i;
 
     for (i = 1; i < size; i++) {

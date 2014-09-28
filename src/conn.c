@@ -44,7 +44,7 @@ void conn_handle(pool *p) {
             response_t resp;
             responseinit(&resp);
             p->nconn--;
-            logging("--------------start handling http connection from at socket %d------------\n", cur_node->connfd);
+            logging("--------------start handling connection from at socket %d------------\n", cur_node->connfd);
             /*parse the request here*/
             logging("Start Parsing Request\n");
             if (parseRequest(cur_node, &resp) < 0) {
@@ -116,9 +116,39 @@ int add_conn(int connfd, pool *p) {
     return 0;
 }
 
+void handleErr(int erro) {
+    switch (erro) {
+        case SSL_ERROR_NONE:
+            logging("SSL_ERROR_NONE\n");
+            break;
+        case SSL_ERROR_ZERO_RETURN:
+            logging("SSL_ERROR_ZERO_RETURN\n");
+            break;
+        case SSL_ERROR_WANT_READ:
+            logging("SSL_ERROR_WANT_READ\n");
+            break;
+        case SSL_ERROR_WANT_CONNECT:
+            logging("SSL_ERROR_WANT_CONNECT\n");
+            break;
+        case SSL_ERROR_WANT_X509_LOOKUP:
+            logging("SSL_ERROR_WANT_X509_LOOKUP\n");
+            break;
+        case SSL_ERROR_SYSCALL:
+            logging("SSL_ERROR_SYSCALL\n");
+            break;
+        case SSL_ERROR_SSL:
+            logging("SSL_ERROR_SSL\n");
+            break;
+        default:
+            logging("Unkown Error\n");
+            break;
+    }
+}
+
 int add_ssl(int connfd, pool *p, SSL_CTX *ssl_context) {
     SSL *client_context;
     p->nconn--;
+    int ret;
 
     if (p->ndp == FD_SETSIZE) {
         logging("add_conn error: Too many clients");
@@ -132,16 +162,21 @@ int add_ssl(int connfd, pool *p, SSL_CTX *ssl_context) {
     }
 
     if ((client_context = SSL_new(ssl_context)) == NULL) {
+        ERR_print_errors_fp(stderr);
         logging("Error creating client SSL context.\n");
         return -1;
     }
 
     if (SSL_set_fd(client_context, connfd) == 0) {
+        SSL_free(client_context);
         logging("Error creating client SSL context.\n");
         return -1;
     }
 
-    if (SSL_accept(client_context) <= 0) {
+    if ((ret = SSL_accept(client_context) <= 0)) {
+        SSL_free(client_context);
+        ERR_print_errors_fp(stderr);
+        handleErr(ret);
         logging("Error accepting (handshake) client SSL context.\n");
         return -1;
     }

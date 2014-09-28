@@ -1,5 +1,4 @@
 #include "response.h"
-#include "parse.h"
 
 #define BUFSIZE 8193
 void addstatus(char *header, status_t status);
@@ -45,6 +44,15 @@ static char* Page_not_found_response =
         "</body>\n"
         "</html>";
 
+static int writecontent(conn_node* node, char* buf, int length) {
+    if (node->isSSL == true) {
+        return SSL_write(node->context, buf, length);
+    }
+    else {
+        return (int)write(node->connfd, buf, length);
+    }
+}
+
 void buildheader(response_t *resp) {
     logging("Start Building the header\n");
 
@@ -63,19 +71,14 @@ void buildheader(response_t *resp) {
 
 int buildresp(conn_node* node, response_t *resp) {
     struct stat fileStat;
+
+    /*if error exist, send error message back*/
     if (resp->error == true) {
         logging("message error, send connection close\n");
         addstatus(resp->header, resp->status);
         addfield(resp, CONNECTION_CLOSE);
-        if (node->isSSL == false) {
-            if(write(node->connfd, resp->header, strlen(resp->header)) <= 0){
-                logging("Writing refusion message failed.\n");
-            }
-        }
-        else{
-            if(SSL_write(node->context, resp->header, strlen(resp->header)) <= 0){
-                logging("Writing refusion message failed.\n");
-            }
+        if(writecontent(node, resp->header, strlen(resp->header)) <= 0){
+            logging("Writing refusion message failed.\n");
         }
         return 0;
     }
@@ -84,42 +87,39 @@ int buildresp(conn_node* node, response_t *resp) {
 
     logging("The requested file is located at %s\n", resp->path);
 
+    /*if file not exists, send 404 message back*/
     if (stat(resp->path, &fileStat) == -1) {
         resp->status = NOT_FOUND;
-        resp->content_len = strlen(Page_not_found_response);
+        resp->content_len = (off_t)strlen(Page_not_found_response);
         resp->filetype = HTML;
         buildheader(resp);
-        if(node->isSSL == false){
-            write(node->connfd, resp->header, strlen(resp->header));
-            write(node->connfd, Page_not_found_response, strlen(Page_not_found_response));
-        }
-        else{
-            SSL_write(node->context, resp->header, strlen(resp->header));
-            SSL_write(node->context, Page_not_found_response, strlen(Page_not_found_response));
-        }
+        writecontent(node, resp->header, strlen(resp->header));
+        writecontent(node, Page_not_found_response, strlen(Page_not_found_response));
+
+
 
         logging("file %s don't exists\n", resp->path);
         return 0;
     }
+
+    /*if file path is valid, get the file metadata*/
     resp->content_len = fileStat.st_size;
     resp->last_md = fileStat.st_mtime;
     getFiletype(resp);
+
+    /*Build file header*/
     buildheader(resp);
 
     logging("Header building finished, sending header back\n");
 
-    if(node->isSSL == false) {
-        if (write(node->connfd, resp->header, strlen(resp->header)) <= 0) {
-            logging("Writing header to socket %d failed\n", node->connfd);
-        }
-    }
-    else {
-        if(SSL_write(node->context, resp->header, strlen(resp->header))<= 0){
-            logging("Writing header to socket %d failed\n", node->connfd);
-        }
+    /*Sending file header back*/
+    if (writecontent(node, resp->header, strlen(resp->header)) <= 0) {
+        logging("Writing header to socket %d failed\n", node->connfd);
     }
 
     logging("Header Sending Finished\n");
+
+    /*if method not head, send message body back*/
     if (resp->method != HEAD) {
         logging("Now Sending the Content\n");
         char *content = malloc(resp->content_len);
@@ -132,15 +132,8 @@ int buildresp(conn_node* node, response_t *resp) {
         }
         logging("Reading content from file %s Successed\n", resp->path);
 
-        if (node->isSSL == false) {
-            if (write(node->connfd, content, resp->content_len) <= 0){
-                logging("Writing header to socket %d failed\n", node->connfd);
-            }
-        }
-        else{
-            if (SSL_write(node->context, content, resp->content_len) <= 0){
-                logging("Writing header to socket %d failed\n", node->connfd);
-            }
+        if (writecontent(node, content, resp->content_len) <= 0){
+            logging("Writing header to socket %d failed\n", node->connfd);
         }
         close(pagefd);
         free(content);

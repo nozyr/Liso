@@ -3,39 +3,40 @@
 
 static int parseUri(char *uri, char *page);
 
+static int readline(conn_node* node, char* buf, int length) {
+    if (node->isSSL == true) {
+        return sslreadline(node->context, buf, length);
+    }
+    else {
+        return httpreadline(node->connfd, buf, length);
+    }
+}
+
+static int readblock(conn_node* node, char* buf, int length) {
+    if (node->isSSL == true) {
+        return SSL_read(node->context, buf, length);
+    }
+    else {
+        return (int)read(node->connfd, buf, length);
+    }
+}
 int parseRequest(conn_node* node, response_t *resp) {
     char buf[BUFSIZE], method[BUFSIZE], version[BUFSIZE];
     int n, post_len = -1;
     bool isPost = false;
 
-    if(node->isSSL == false){
-        if ((n = readline(node->connfd, buf, BUFSIZE)) <= 0) {
-            if (n == -1) {
-                resp->error = true;
-                resp->status = INTERNAL_SERVER_ERROR;
-                logging("Can not read from socket %d\n", node->connfd);
-                logging("%s", strerror(errno));
-                return -1;
-            }
-            if (n == 0) {
-                resp->error = true;
-                return 0;
-            }
+
+    if ((n = readline(node, buf, BUFSIZE)) <= 0) {
+        if (n == -1) {
+            resp->error = true;
+            resp->status = INTERNAL_SERVER_ERROR;
+            logging("Can not read from socket %d\n", node->connfd);
+            logging("%s", strerror(errno));
+            return -1;
         }
-    }
-    else{
-        if ((n = sslreadline(node->context, buf, BUFSIZE)) <= 0) {
-            if (n == -1) {
-                resp->error = true;
-                resp->status = INTERNAL_SERVER_ERROR;
-                logging("Can not read from socket %d\n", node->connfd);
-                logging("%s", strerror(errno));
-                return -1;
-            }
-            if (n == 0) {
-                resp->error = true;
-                return 0;
-            }
+        if (n == 0) {
+            resp->error = true;
+            return 0;
         }
     }
 
@@ -81,7 +82,7 @@ int parseRequest(conn_node* node, response_t *resp) {
     /*Read the rest of the headers*/
     do {
         char *pos = NULL;
-        n = readline(node->connfd, buf, BUFSIZE);
+        n = readline(node, buf, BUFSIZE);
         logging("%s", buf);
 
         if (isPost == true) {
@@ -97,7 +98,7 @@ int parseRequest(conn_node* node, response_t *resp) {
 
     /*if is post method, read the content in the body*/
     if (isPost == true && post_len > 0) {
-        read(node->connfd, buf, post_len);
+        readblock(node, buf, post_len);
     }
     else if (isPost == true && post_len == -1) {
         resp->error = true;
