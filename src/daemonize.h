@@ -8,6 +8,7 @@
 #include <stdio.h>
 #include <string.h>
 #include <stdlib.h>
+#include "log.h"
 
 int daemonize(char *lock_file);
 

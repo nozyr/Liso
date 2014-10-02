@@ -243,7 +243,7 @@ int add_ssl(int connfd, pool *p, SSL_CTX *ssl_context, struct sockaddr_in* cli_a
     }
 
     if ((client_context = SSL_new(ssl_context)) == NULL) {
-        ERR_print_errors_fp(stderr);
+//        ERR_print_errors_fp(stderr);
         logging("Error creating client SSL context.\n");
         return -1;
     }
@@ -256,7 +256,7 @@ int add_ssl(int connfd, pool *p, SSL_CTX *ssl_context, struct sockaddr_in* cli_a
 
     if ((ret = SSL_accept(client_context) <= 0)) {
         SSL_free(client_context);
-        ERR_print_errors_fp(stderr);
+//        ERR_print_errors_fp(stderr);
         handleErr(ret);
         logging("Error accepting (handshake) client SSL context.\n");
         return -1;

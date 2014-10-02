@@ -11,7 +11,7 @@
 
 SOURCE=src
 VPATH=$(SOURCE)
-LFLAGS=-lssl -lcrypto
+LFLAGS=-lssl
 
 OBJECTS = liso.o
 OBJECTS += conn.o
@@ -22,8 +22,9 @@ OBJECTS += socket.o
 OBJECTS += io.o
 OBJECTS += https.o
 OBJECTS += cgi.o
+OBJECTS += daemonize.o
 
-default: lisod clean
+default: lisod
 
 lisod: $(OBJECTS)
 	@gcc -o lisod -Wall -Werror $(LFLAGS) $(OBJECTS)

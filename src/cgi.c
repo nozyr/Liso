@@ -3,7 +3,7 @@
 #include "parse.h"
 
 #define BUF_SIZE 4096
-#define CGI_HEADER_LEN 21
+#define CGI_HEADER_LEN 22
 
 static char * _cgipath;
 static char * _http_port;
@@ -34,62 +34,62 @@ int initCGI(char *cgipath, char* http_port, char* https_port) {
 void execve_error_handler() {
     switch (errno) {
         case E2BIG:
-            fprintf(stderr, "The total number of bytes in the environment "
+            logging("The total number of bytes in the environment "
                     "(envp) and argument list (argv) is too large.\n");
             return;
         case EACCES:
-            fprintf(stderr, "Execute permission is denied for the file or a script or ELF interpreter.\n");
+            logging("Execute permission is denied for the file or a script or ELF interpreter.\n");
             return;
         case EFAULT:
-            fprintf(stderr, "filename points outside your accessible address space.\n");
+            logging("filename points outside your accessible address space.\n");
             return;
         case EINVAL:
-            fprintf(stderr, "An ELF executable had more than one PT_INTERP segment "
+            logging("An ELF executable had more than one PT_INTERP segment "
                     "(i.e., tried to name more than one interpreter).\n");
             return;
         case EIO:
-            fprintf(stderr, "An I/O error occurred.\n");
+            logging("An I/O error occurred.\n");
             return;
         case EISDIR:
-            fprintf(stderr, "An ELF interpreter was a directory.\n");
+            logging("An ELF interpreter was a directory.\n");
             return;
         case ELOOP:
-            fprintf(stderr, "Too many symbolic links were encountered in resolving "
+            logging("Too many symbolic links were encountered in resolving "
                     "filename or the name of a script or ELF interpreter.\n");
             return;
         case EMFILE:
-            fprintf(stderr, "The process has the maximum number of files open.\n");
+            logging("The process has the maximum number of files open.\n");
             return;
         case ENAMETOOLONG:
-            fprintf(stderr, "filename is too long.\n");
+            logging("filename is too long.\n");
             return;
         case ENFILE:
-            fprintf(stderr, "The system limit on the total number of open files has been reached.\n");
+            logging("The system limit on the total number of open files has been reached.\n");
             return;
         case ENOENT:
-            fprintf(stderr, "The file filename or a script or ELF interpreter does not exist, "
+            logging("The file filename or a script or ELF interpreter does not exist, "
                     "or a shared library needed for file or interpreter cannot be found.\n");
             return;
         case ENOEXEC:
-            fprintf(stderr, "An executable is not in a recognised format, is for the wrong architecture, "
+            logging("An executable is not in a recognised format, is for the wrong architecture, "
                     "or has some other format error that means it cannot be executed.\n");
             return;
         case ENOMEM:
-            fprintf(stderr, "Insufficient kernel memory was available.\n");
+            logging("Insufficient kernel memory was available.\n");
             return;
         case ENOTDIR:
-            fprintf(stderr, "A component of the path prefix of filename or a script "
+            logging("A component of the path prefix of filename or a script "
                     "or ELF interpreter is not a directory.\n");
             return;
         case EPERM:
-            fprintf(stderr, "The file system is mounted nosuid, the user is not the superuser, "
+            logging("The file system is mounted nosuid, the user is not the superuser, "
                     "and the file has an SUID or SGID bit set.\n");
             return;
         case ETXTBSY:
-            fprintf(stderr, "Executable was open for writing by one or more processes.\n");
+            logging("Executable was open for writing by one or more processes.\n");
             return;
         default:
-            fprintf(stderr, "Unkown error occurred with execve().\n");
+            logging("Unkown error occurred with execve().\n");
             return;
     }
 }
@@ -220,9 +220,11 @@ static void buildEnvp(response_t* resp){
 //    logging("Query inserting finished\n");
     if (resp->ishttps) {
         insertEnvp(resp, "SERVER_PORT", _https_port);
+        insertEnvp(resp, "HTTPS", "1");
     }
     else {
         insertEnvp(resp, "SERVER_PORT", _http_port);
+        insertEnvp(resp, "HTTP", "1");
     }
 
     insertEnvp(resp, "REMOTE_ADDR", resp->addr);
