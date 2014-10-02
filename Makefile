@@ -22,7 +22,6 @@ OBJECTS += socket.o
 OBJECTS += io.o
 OBJECTS += https.o
 OBJECTS += cgi.o
-OBJECTS += daemonize.o
 
 default: lisod
 
