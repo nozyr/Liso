@@ -1,4 +1,8 @@
 #include "conn.h"
+#include "parse.h"
+
+static void addCGI(cgi_node *node, pool* p);
+static void removeCGI(cgi_node *node, pool* p);
 
 void init_pool(int http_fd, int https_fd, pool *p) {
 //    int i;
@@ -7,6 +11,8 @@ void init_pool(int http_fd, int https_fd, pool *p) {
 //    p->nconn = 0;
     p->list_head = NULL;
     p->list_tail = NULL;
+    p->cgi_head = NULL;
+    p->cgi_tail = NULL;
 
 //    for (i = 0; i < FD_SETSIZE; i++) {
 //        p->clientfd[i] = -1;
@@ -20,31 +26,63 @@ void init_pool(int http_fd, int https_fd, pool *p) {
     FD_SET(https_fd, &p->read_set);
 }
 
-void remove_node(conn_node *node) {
+void remove_node(conn_node *node, pool* p) {
     if (node->prev != NULL) {
         node->prev->next = node->next;
+    }
+    else{
+        p->list_head = node->next;
+        if (node->next != NULL) {
+            node->next->prev = NULL;
+        }
     }
 
     if (node->next != NULL) {
         node->next->prev = node->prev;
     }
+    else{
+        p->list_tail = node->prev;
+        if (node->prev != NULL) {
+            node->prev->next = NULL;
+        }
+    }
+
+    free(node);
+}
+
+void freelist(hdNode *head){
+    hdNode* prev = head;
+    hdNode* cur = head;
+
+    while (cur != NULL) {
+        cur = cur->next;
+        free(prev);
+        prev = cur;
+    }
 }
 
 void conn_handle(pool *p) {
     conn_node *cur_node;
+    cgi_node* cur_cgi;
     cur_node = p->list_head;
+    cur_cgi = p->cgi_head;
 
     logging("Start Connection Handling procedure\n");
 
     /*Handle the http connections*/
     while (cur_node != NULL && p->nconn > 0) {
 
-        logging("Now in the handling loop\n");
-        if ((cur_node->connfd > 0) && (FD_ISSET(cur_node->connfd, &p->ready_set))) {
+//        logging("Now in the http handling loop\n");
+        if (FD_ISSET(cur_node->connfd, &p->ready_set)) {
+            conn_node* tormNode = NULL;
+            logging("--------------start handling http connection from at socket %d------------\n", cur_node->connfd);
+
             response_t resp;
             responseinit(&resp);
             p->nconn--;
-            logging("--------------start handling connection from at socket %d------------\n", cur_node->connfd);
+
+            resp.ishttps = cur_node->isSSL;
+            resp.addr = cur_node->addr;
             /*parse the request here*/
             logging("Start Parsing Request\n");
             if (parseRequest(cur_node, &resp) < 0) {
@@ -54,8 +92,20 @@ void conn_handle(pool *p) {
                 logging("Start building the response\n");
             }
             /*send the response here*/
-            buildresp(cur_node, &resp);
+            if (buildresp(cur_node, &resp) == -1) {
+                logging("response error\n");
+                exit(EXIT_FAILURE);
+            }
 
+            if (resp.isCGI == true) {
+                if (resp.cgiNode == NULL) {
+                    logging("Failed to get CGI node\n");
+                    exit(EXIT_FAILURE);
+                }
+                resp.cgiNode->connNode = cur_node;
+
+                addCGI(resp.cgiNode, p);
+            }
             if (resp.error == true) {
                 /*close the connection*/
                 logging("close connection %d\n", cur_node->connfd);
@@ -63,23 +113,53 @@ void conn_handle(pool *p) {
                 FD_CLR(cur_node->connfd, &p->read_set);
 
                 /*remove node from the connection list*/
-                remove_node(cur_node);
-                free(cur_node);
+                tormNode = cur_node;
+                cur_node = cur_node->next;
+                remove_node(tormNode, p);
                 p->ndp--;
-                continue;
             }
 
             if (resp.path) {
                 free(resp.path);
             }
-            logging("-------------------connection handling finished----------------------\n");
-        }
 
+            if (resp.hdhead) {
+                freelist(resp.hdhead);
+            }
+            if (resp.postbody) {
+                free(resp.postbody);
+            }
+            logging("-------------------connection handling finished----------------------\n");
+            continue;
+        }
+//        logging("At the end of http handling loop\n");
         cur_node = cur_node->next;
+    }
+
+    while (cur_cgi != NULL && p->nconn > 0) {
+//        logging("Now in the cgi handling loop\n");
+        if(FD_ISSET(cur_cgi->connfd, &p->ready_set)){
+            cgi_node* tormNode = NULL;
+            logging("--------------Now start handling cgi output at %d-----------------\n", cur_cgi->connfd);
+            p->nconn--;
+            if (CGIresp(cur_cgi) == -1) {
+                exit(EXIT_FAILURE);
+            }
+
+            tormNode = cur_cgi;
+            cur_cgi = cur_cgi->next;
+            FD_CLR(tormNode->connfd, &p->read_set);
+            removeCGI(tormNode, p);
+            p->ndp--;
+            logging("-------------Finish the cgi output handling-------------------\n");
+            continue;
+        }
+//        logging("At the end of cgi handling loop\n");
+        cur_cgi = cur_cgi->next;
     }
 }
 
-int add_conn(int connfd, pool *p) {
+int add_conn(int connfd, pool *p, struct sockaddr_in* cli_addr) {
     p->nconn--;
 
     if (p->ndp == FD_SETSIZE) {
@@ -100,6 +180,7 @@ int add_conn(int connfd, pool *p) {
     new_node->connfd = connfd;
     new_node->isSSL = false;
     new_node->context = NULL;
+    new_node->addr = inet_ntoa(cli_addr->sin_addr);
     new_node->prev = NULL;
     new_node->next = NULL;
 
@@ -145,7 +226,7 @@ void handleErr(int erro) {
     }
 }
 
-int add_ssl(int connfd, pool *p, SSL_CTX *ssl_context) {
+int add_ssl(int connfd, pool *p, SSL_CTX *ssl_context, struct sockaddr_in* cli_addr) {
     SSL *client_context;
     p->nconn--;
     int ret;
@@ -186,6 +267,7 @@ int add_ssl(int connfd, pool *p, SSL_CTX *ssl_context) {
     new_node->connfd = connfd;
     new_node->isSSL = true;
     new_node->context = client_context;
+    new_node->addr = inet_ntoa(cli_addr->sin_addr);
     new_node->next = NULL;
     new_node->prev = NULL;
 
@@ -200,4 +282,65 @@ int add_ssl(int connfd, pool *p, SSL_CTX *ssl_context) {
     }
 
     return 0;
+}
+
+
+static void addCGI(cgi_node *node, pool* p){
+    int connfd = node->connfd;
+    if (p->ndp == FD_SETSIZE) {
+        logging("add_conn error: Too many clients");
+        return;
+    }
+
+    p->ndp++;
+
+    if (p->maxfd < connfd) {
+        p->maxfd = connfd;
+    }
+
+    FD_SET(connfd, &p->read_set);
+    cgi_node *new_node = node;
+    new_node->next = NULL;
+    new_node->prev = NULL;
+
+    if (p->cgi_head == NULL) {
+        p->cgi_head = new_node;
+        p->cgi_tail = new_node;
+    }
+    else {
+        p->cgi_tail->next = new_node;
+        new_node->prev = p->cgi_tail;
+        p->cgi_tail = new_node;
+    }
+
+    return;
+
+}
+
+static void removeCGI(cgi_node *node, pool* p) {
+    if (node == NULL) {
+        logging("removeCGI received a NULL pointer\n");
+        return;
+    }
+    if (node->prev != NULL) {
+        node->prev->next = node->next;
+    }
+    else{
+        p->cgi_head = node->next;
+        if (node->next != NULL) {
+            node->next->prev = NULL;
+        }
+    }
+
+    if (node->next != NULL) {
+        node->next->prev = node->prev;
+    }
+    else{
+        p->cgi_tail = node->prev;
+        if (node->prev != NULL) {
+            node->prev->next = NULL;
+        }
+    }
+
+    free(node);
 }

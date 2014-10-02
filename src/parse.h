@@ -30,29 +30,62 @@ typedef enum {
     GET, HEAD, POST, NOT_SUPPORT
 } method_t;
 
-typedef struct {
-    bool error;
-    method_t method;
-    status_t status;
-    off_t content_len;
-    char *path;
-    char uri[BUFSIZE];
-    char header[BUFSIZE];
-    char page[BUFSIZE];
-    MIMEType filetype;
-    time_t last_md;
-} response_t;
+typedef struct _hdNode{
+    char* key;
+    char* value;
+    struct _hdNode* prev;
+    struct _hdNode* next;
+} hdNode;
 
 typedef struct _conn_node{
     int connfd;
     bool isSSL;
     SSL* context;
+    char* addr;
     struct _conn_node* prev;
     struct _conn_node* next;
 }conn_node;
 
+typedef struct _cgi_node{
+    int connfd;
+    int pid;
+    conn_node* connNode;
+    struct _cgi_node* prev;
+    struct _cgi_node* next;
+}cgi_node;
+
+typedef struct {
+    bool error;
+    bool ishttps;
+    method_t method;
+    status_t status;
+    off_t content_len;
+    bool isCGI;
+    char *path;
+    char uri[BUFSIZE];
+    char header[BUFSIZE];
+    char page[BUFSIZE];
+    char* postbody;
+    char* addr;
+    MIMEType filetype;
+    time_t last_md;
+    hdNode* hdhead;
+    hdNode* hdtail;
+    hdNode* envphead;
+    hdNode* envptail;
+    int hdlineNum;
+    int postlen;
+    cgi_node* cgiNode;
+} response_t;
+
+
+
 int parseRequest(conn_node* node, response_t *resp);
 
 void responseinit(response_t *resp);
+
+void inserthdNode(response_t* resp, hdNode *newNode);
+
+hdNode* newNode(char* key, char *value);
 
 #endif

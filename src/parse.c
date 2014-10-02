@@ -14,18 +14,70 @@ static int readline(conn_node* node, char* buf, int length) {
 
 static int readblock(conn_node* node, char* buf, int length) {
     if (node->isSSL == true) {
-        return SSL_read(node->context, buf, length);
+        int i;
+        for (i = 1; i <= length; i++) {
+            char c;
+            ssize_t rc;
+            if ((rc = SSL_read(node->context, &c, 1)) == 1) {
+                *buf++ = c;
+            }
+            else if (rc == 0) {
+                if (i == 1) {
+                    return 0;
+                }
+                else {
+                    break;
+                }
+            }
+            else {
+                return -1;
+            }
+        }
+
+
+        return i-1;
     }
     else {
         return (int)read(node->connfd, buf, length);
     }
+}
+
+hdNode* newNode(char* key, char *value){
+    hdNode *node = malloc(sizeof(hdNode));
+    node->key = key;
+    node->value = value;
+    node->prev = NULL;
+    node->next = NULL;
+
+    return node;
+}
+
+void inserthdNode(response_t* resp, hdNode *newNode){
+    if (resp->hdhead == NULL) {
+        resp->hdhead = newNode;
+        resp->hdtail = newNode;
+    }
+    else {
+        resp->hdtail->next = newNode;
+        newNode->prev = resp->hdtail;
+        resp->hdtail = newNode;
+        resp->hdtail->next = NULL;
+    }
+}
+
+static bool isCGIreq(char *uri){
+    if(strstr(uri, "/cgi/") == uri){
+        return true;
+    }
+
+    return false;
 }
 int parseRequest(conn_node* node, response_t *resp) {
     char buf[BUFSIZE], method[BUFSIZE], version[BUFSIZE];
     int n, post_len = -1;
     bool isPost = false;
 
-
+    /*Read the request line*/
     if ((n = readline(node, buf, BUFSIZE)) <= 0) {
         if (n == -1) {
             resp->error = true;
@@ -42,6 +94,7 @@ int parseRequest(conn_node* node, response_t *resp) {
 
 
     logging("The request status is %s\n", buf);
+
     if (sscanf(buf, "%s %s %s", method, resp->uri, version) < 3) {
         resp->error = true;
         resp->status = BAD_REQUEST;
@@ -62,6 +115,9 @@ int parseRequest(conn_node* node, response_t *resp) {
         return -1;
     }
 
+    /*Judge the request is cgi or not*/
+    resp->isCGI = isCGIreq(resp->page);
+
     if (!strcmp(method, "GET")) {
         resp->method = GET;
     }
@@ -80,10 +136,36 @@ int parseRequest(conn_node* node, response_t *resp) {
     }
 
     /*Read the rest of the headers*/
+
     do {
         char *pos = NULL;
+        char* key = NULL;
+        char* value = NULL;
+        memset(buf, 0, BUFSIZE);
         n = readline(node, buf, BUFSIZE);
         logging("%s", buf);
+
+        if (n > 2) {
+            key = malloc(BUFSIZE);
+            value = malloc(BUFSIZE);
+
+            memset(key, 0, BUFSIZE);
+            memset(value, 0, BUFSIZE);
+
+            if (sscanf(buf, "%[a-zA-Z0-9-]:%8192[^\r\n]", key, value) != 2) {
+                resp->error = true;
+                resp->status = BAD_REQUEST;
+                logging("parsing header line %s error!\n", buf);
+                break;
+            }
+
+            key = realloc(key, strlen(key) + 1);
+            value = realloc(value, strlen(value) + 1);
+            inserthdNode(resp, newNode(key, value));
+            resp->hdlineNum++;
+
+        }
+
 
         if (isPost == true) {
             pos = strstr(buf, "Content-Length");
@@ -98,7 +180,17 @@ int parseRequest(conn_node* node, response_t *resp) {
 
     /*if is post method, read the content in the body*/
     if (isPost == true && post_len > 0) {
-        readblock(node, buf, post_len);
+        int rc;
+        resp->postbody = malloc(post_len+1);
+        memset(resp->postbody, 0, post_len+1);
+        rc = readblock(node, resp->postbody, post_len);
+        if (rc < post_len) {
+            logging("error! post length %d smaller than expected\n", rc);
+            return -1;
+        }
+        resp->postlen = rc;
+        logging("The postbody is:\n%s\n", resp->postbody);
+        logging("The post length is: %d\n", resp->postlen);
     }
     else if (isPost == true && post_len == -1) {
         resp->error = true;
@@ -147,11 +239,22 @@ static int parseUri(char *uri, char *page) {
 void responseinit(response_t *resp) {
 
     resp->method = GET;
+    resp->ishttps = false;
     resp->status = OK;
     resp->content_len = 0;
     resp->error = false;
+    resp->isCGI = false;
     resp->path = NULL;
     resp->filetype = OTHER;
+    resp->postbody = NULL;
+    resp->hdlineNum = 0;
+    resp->postlen = 0;
+    resp->cgiNode = NULL;
+    resp->hdhead = NULL;
+    resp->hdtail = NULL;
+    resp->envphead = NULL;
+    resp->envptail = NULL;
+    resp->addr = NULL;
     memset(resp->header, 0, BUFSIZE);
     memset(resp->uri, 0, BUFSIZE);
     memset(resp->page, 0, BUFSIZE);

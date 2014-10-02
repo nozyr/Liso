@@ -6,7 +6,7 @@ void loginit(char *logfile) {
     _logfd = fopen(logfile, "w");
 
     if (_logfd == NULL) {
-        printf("log file initialization error");
+        printf("log file initialization error\n");
         exit(EXIT_FAILURE);
     }
 }

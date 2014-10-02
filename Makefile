@@ -11,7 +11,7 @@
 
 SOURCE=src
 VPATH=$(SOURCE)
-LFLAGS=-lssl
+LFLAGS=-lssl -lcrypto
 
 OBJECTS = liso.o
 OBJECTS += conn.o
@@ -21,6 +21,7 @@ OBJECTS += response.o
 OBJECTS += socket.o
 OBJECTS += io.o
 OBJECTS += https.o
+OBJECTS += cgi.o
 
 default: lisod clean
 
@@ -30,7 +31,7 @@ lisod: $(OBJECTS)
 .phony: clean
 
 run:
-	./lisod 1440 1441 ./log/log lock www cgi ./cert/yuruiz.key ./cert/yuruiz.crt
+	./lisod 1440 1441 ./log/log lock www flaskr/flaskr.py ./cert/yuruiz.key ./cert/yuruiz.crt
 
 clean:
 	@rm $(OBJECTS)
