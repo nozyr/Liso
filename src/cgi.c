@@ -1,6 +1,4 @@
-#include <Python/Python.h>
 #include "cgi.h"
-#include "parse.h"
 
 #define BUF_SIZE 4096
 #define CGI_HEADER_LEN 22
@@ -8,7 +6,6 @@
 static char * _cgipath;
 static char * _http_port;
 static char * _https_port;
-//static char script_name[BUF_SIZE];
 
 static char* ARGV[2] = {};
 
@@ -20,8 +17,6 @@ int initCGI(char *cgipath, char* http_port, char* https_port) {
     _https_port = https_port;
     ARGV[0] = _cgipath;
     ARGV[1] = NULL;
-
-//    memset(script_name, 0, BUFSIZE);
 
     if (stat(_cgipath, &fileStat) == -1) {
         logging("The designated cgi file not existed\n");
@@ -310,7 +305,8 @@ int cgihandle(response_t *resp) {
         close(stdout_pipe[1]);
         close(stdin_pipe[0]);
 
-        for (int i = 0; i < CGI_HEADER_LEN; ++i) {
+        int i = 0;
+        for (i = 0; i < CGI_HEADER_LEN; ++i) {
             free(envp[i]);
         }
 

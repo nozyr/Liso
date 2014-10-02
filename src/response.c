@@ -1,5 +1,4 @@
 #include "response.h"
-#include "parse.h"
 
 #define BUFSIZE 8193
 void addstatus(char *header, status_t status);

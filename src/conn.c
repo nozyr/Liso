@@ -1,5 +1,4 @@
 #include "conn.h"
-#include "parse.h"
 
 static void addCGI(cgi_node *node, pool* p);
 static void removeCGI(cgi_node *node, pool* p);
