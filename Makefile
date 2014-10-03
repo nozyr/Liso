@@ -24,7 +24,7 @@ OBJECTS += https.o
 OBJECTS += cgi.o
 OBJECTS += daemonize.o
 
-default: lisod clean run
+default: lisod
 
 lisod: $(OBJECTS)
 	@gcc -o lisod -Wall -Werror $(LFLAGS) $(OBJECTS)
