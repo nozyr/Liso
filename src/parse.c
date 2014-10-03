@@ -3,8 +3,8 @@
 
 static int parseUri(char *uri, char *page);
 
-char* getValueByKey(hdNode* head, char *key){
-    hdNode* curNode = head;
+char *getValueByKey(hdNode *head, char *key) {
+    hdNode *curNode = head;
 
 
     if (head == NULL) {
@@ -24,7 +24,7 @@ char* getValueByKey(hdNode* head, char *key){
     return NULL;
 }
 
-static int readline(conn_node* node, char* buf, int length) {
+static int readline(conn_node *node, char *buf, int length) {
     if (node->isSSL == true) {
         return sslreadline(node->context, buf, length);
     }
@@ -33,7 +33,7 @@ static int readline(conn_node* node, char* buf, int length) {
     }
 }
 
-static int readblock(conn_node* node, char* buf, int length) {
+static int readblock(conn_node *node, char *buf, int length) {
     if (node->isSSL == true) {
         int i;
         for (i = 1; i <= length; i++) {
@@ -56,14 +56,14 @@ static int readblock(conn_node* node, char* buf, int length) {
         }
 
 
-        return i-1;
+        return i - 1;
     }
     else {
-        return (int)read(node->connfd, buf, length);
+        return (int) read(node->connfd, buf, length);
     }
 }
 
-hdNode* newNode(char* key, char *value){
+hdNode *newNode(char *key, char *value) {
     hdNode *node = malloc(sizeof(hdNode));
     node->key = key;
     node->value = value;
@@ -73,7 +73,7 @@ hdNode* newNode(char* key, char *value){
     return node;
 }
 
-void inserthdNode(response_t* resp, hdNode *newNode){
+void inserthdNode(response_t *resp, hdNode *newNode) {
     if (resp->hdhead == NULL) {
         resp->hdhead = newNode;
         resp->hdtail = newNode;
@@ -86,16 +86,17 @@ void inserthdNode(response_t* resp, hdNode *newNode){
     }
 }
 
-static bool isCGIreq(char *uri){
-    if(strstr(uri, "/cgi/") == uri){
+static bool isCGIreq(char *uri) {
+    if (strstr(uri, "/cgi/") == uri) {
         return true;
     }
 
     return false;
 }
-int parseRequest(conn_node* node, response_t *resp) {
+
+int parseRequest(conn_node *node, response_t *resp) {
     char buf[BUFSIZE], method[BUFSIZE], version[BUFSIZE];
-    char* connection = NULL;
+    char *connection = NULL;
     int n, post_len = -1;
     bool isPost = false;
 
@@ -162,8 +163,8 @@ int parseRequest(conn_node* node, response_t *resp) {
 
     do {
         char *pos = NULL;
-        char* key = NULL;
-        char* value = NULL;
+        char *key = NULL;
+        char *value = NULL;
         memset(buf, 0, BUFSIZE);
         n = readline(node, buf, BUFSIZE);
         logging("%s", buf);
@@ -206,10 +207,10 @@ int parseRequest(conn_node* node, response_t *resp) {
     /*if is post method, read the content in the body*/
     if (isPost == true && post_len > 0) {
         int rc;
-        resp->postbody = malloc(post_len+1);
-        memset(resp->postbody, 0, post_len+1);
+        resp->postbody = malloc(post_len * 2);
+        memset(resp->postbody, 0, post_len * 2);
         rc = readblock(node, resp->postbody, post_len);
-        if (rc < post_len) {
+        if (rc != post_len) {
             logging("error! post length %d not equal to post_len\n", rc);
             resp->error = true;
             resp->status = BAD_REQUEST;
@@ -231,7 +232,7 @@ int parseRequest(conn_node* node, response_t *resp) {
         if (strstr(connection, "Keep-Alive")) {
             resp->keepAlive = true;
         }
-        else if (!strcmp(connection, "Close")) {
+        else if (strstr(connection, "Close")) {
             resp->conn_close = true;
         }
 
