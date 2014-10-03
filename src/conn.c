@@ -1,21 +1,15 @@
 #include "conn.h"
+#include "parse.h"
 
 static void addCGI(cgi_node *node, pool* p);
 static void removeCGI(cgi_node *node, pool* p);
 
 void init_pool(int http_fd, int https_fd, pool *p) {
-//    int i;
 
-//    p->ndp = -1;
-//    p->nconn = 0;
     p->list_head = NULL;
     p->list_tail = NULL;
     p->cgi_head = NULL;
     p->cgi_tail = NULL;
-
-//    for (i = 0; i < FD_SETSIZE; i++) {
-//        p->clientfd[i] = -1;
-//    }
 
     FD_ZERO(&p->ready_set);
     FD_ZERO(&p->read_set);
@@ -82,6 +76,7 @@ void conn_handle(pool *p) {
 
             resp.ishttps = cur_node->isSSL;
             resp.addr = cur_node->addr;
+
             /*parse the request here*/
             logging("Start Parsing Request\n");
             if (parseRequest(cur_node, &resp) < 0) {
@@ -91,9 +86,11 @@ void conn_handle(pool *p) {
                 logging("Start building the response\n");
             }
             /*send the response here*/
-            if (buildresp(cur_node, &resp) == -1) {
-                logging("response error\n");
-                exit(EXIT_FAILURE);
+            if(resp.conn_close == false){
+                if (buildresp(cur_node, &resp) == -1) {
+                    logging("response error\n");
+                    exit(EXIT_FAILURE);
+                }
             }
 
             if (resp.isCGI == true) {
@@ -105,7 +102,7 @@ void conn_handle(pool *p) {
 
                 addCGI(resp.cgiNode, p);
             }
-            if (resp.error == true) {
+            if ((resp.error == true && resp.keepAlive == false) || resp.conn_close == true ) {
                 /*close the connection*/
                 logging("close connection %d\n", cur_node->connfd);
                 close(cur_node->connfd);

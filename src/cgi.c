@@ -167,27 +167,6 @@ static char* methodtoString(method_t method) {
     return NULL;
 }
 
-static char* getValueByKey(hdNode* head, char *key){
-    hdNode* curNode = head;
-
-
-    if (head == NULL) {
-        logging("The getValueByKey receive a null head!\n");
-        return NULL;
-    }
-
-//    logging("Start looking for key:%s\n", key);
-    while (curNode != NULL) {
-        if (strcmp(key, curNode->key) == 0) {
-//            logging("Key value found %s\n", curNode->value);
-            return curNode->value;
-        }
-        curNode = curNode->next;
-    }
-//    logging("Key value not found!\n");
-    return NULL;
-}
-
 
 static void buildEnvp(response_t* resp){
     char* uri = resp->uri;

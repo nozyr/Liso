@@ -3,6 +3,27 @@
 
 static int parseUri(char *uri, char *page);
 
+char* getValueByKey(hdNode* head, char *key){
+    hdNode* curNode = head;
+
+
+    if (head == NULL) {
+        logging("The getValueByKey receive a null head!\n");
+        return NULL;
+    }
+
+//    logging("Start looking for key:%s\n", key);
+    while (curNode != NULL) {
+        if (strcmp(key, curNode->key) == 0) {
+//            logging("Key value found %s\n", curNode->value);
+            return curNode->value;
+        }
+        curNode = curNode->next;
+    }
+//    logging("Key value not found!\n");
+    return NULL;
+}
+
 static int readline(conn_node* node, char* buf, int length) {
     if (node->isSSL == true) {
         return sslreadline(node->context, buf, length);
@@ -74,6 +95,7 @@ static bool isCGIreq(char *uri){
 }
 int parseRequest(conn_node* node, response_t *resp) {
     char buf[BUFSIZE], method[BUFSIZE], version[BUFSIZE];
+    char* connection = NULL;
     int n, post_len = -1;
     bool isPost = false;
 
@@ -199,6 +221,18 @@ int parseRequest(conn_node* node, response_t *resp) {
         return -1;
     }
 
+    connection = getValueByKey(resp->hdhead, "Connection");
+
+    if (connection != NULL) {
+        if(!strcmp(connection, "Keep-Alive")){
+            resp->keepAlive = true;
+        }
+        else if (!strcmp(connection, "Close")) {
+            resp->conn_close = true;
+        }
+
+    }
+
     return 1;
 }
 
@@ -241,6 +275,8 @@ void responseinit(response_t *resp) {
 
     resp->method = GET;
     resp->ishttps = false;
+    resp->keepAlive = false;
+    resp->conn_close = false;
     resp->status = OK;
     resp->content_len = 0;
     resp->error = false;

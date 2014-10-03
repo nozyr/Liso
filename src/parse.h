@@ -57,6 +57,8 @@ typedef struct _cgi_node{
 typedef struct {
     bool error;
     bool ishttps;
+    bool conn_close;
+    bool keepAlive;
     method_t method;
     status_t status;
     off_t content_len;
@@ -85,6 +87,8 @@ int parseRequest(conn_node* node, response_t *resp);
 void responseinit(response_t *resp);
 
 void inserthdNode(response_t* resp, hdNode *newNode);
+
+char* getValueByKey(hdNode* head, char *key);
 
 hdNode* newNode(char* key, char *value);
 
