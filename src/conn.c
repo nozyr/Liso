@@ -100,7 +100,7 @@ void conn_handle(pool *p) {
 
                 addCGI(resp.cgiNode, p);
             }
-            if ((resp.error == true && resp.keepAlive == false) || resp.conn_close == true ) {
+            if (resp.conn_close == true ) {
                 /*close the connection*/
                 logging("close connection %d\n", cur_node->connfd);
                 close(cur_node->connfd);
