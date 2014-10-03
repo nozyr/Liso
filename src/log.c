@@ -22,8 +22,8 @@ void logging(const char *format, ...) {
     fflush(_logfd);
     va_end(args);
 }
-
-
-int getlogfd(){
-    return _logfd->_file;
-}
+//
+//
+//int getlogfd(){
+//    return _logfd->_file;
+//}

@@ -289,7 +289,7 @@ int cgihandle(response_t *resp) {
         close(stdin_pipe[1]);
         dup2(stdout_pipe[1], fileno(stdout));
         dup2(stdin_pipe[0], fileno(stdin));
-        dup2(getlogfd(), fileno(stderr));
+//        dup2(getlogfd(), fileno(stderr));
 
         /* pretty much no matter what, if it returns bad things happened... */
 
