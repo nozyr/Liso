@@ -22,13 +22,14 @@ OBJECTS += socket.o
 OBJECTS += io.o
 OBJECTS += https.o
 OBJECTS += cgi.o
+OBJECTS += daemonize.o
 
-default: lisod
+default: lisod clean run
 
 lisod: $(OBJECTS)
 	@gcc -o lisod -Wall -Werror $(LFLAGS) $(OBJECTS)
 
-.phony: clean
+.phony: clean run
 
 run:
 	./lisod 1440 1441 ./log/log lock www flaskr/flaskr.py ./cert/yuruiz.key ./cert/yuruiz.crt

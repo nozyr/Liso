@@ -8,4 +8,5 @@
 
 void loginit(char *logfile);
 void logging(const char *format, ...);
+int getlogfd();
 #endif

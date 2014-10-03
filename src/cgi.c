@@ -289,13 +289,14 @@ int cgihandle(response_t *resp) {
         close(stdin_pipe[1]);
         dup2(stdout_pipe[1], fileno(stdout));
         dup2(stdin_pipe[0], fileno(stdin));
+        dup2(getlogfd(), fileno(stderr));
 
         /* pretty much no matter what, if it returns bad things happened... */
 
         if (execve(_cgipath, ARGV, envp)) {
             execve_error_handler();
             logging("Error executing execve syscall.\n");
-            return -1;
+            exit(EXIT_FAILURE);
         }
         /*************** END EXECVE ****************/
     }
@@ -330,14 +331,14 @@ int cgihandle(response_t *resp) {
 
 
 int CGIresp(cgi_node *node){
-    int readret = 0;
+    ssize_t readret = 0;
     int readfd = node->connfd;
     char buf[BUFSIZE];
 
     logging("Now start reading cgi response content\n");
     while ((readret = read(readfd, buf, BUF_SIZE - 1)) > 0) {
         writecontent(node->connNode, buf, readret);
-//        logging("Got from CGI: %s\n", buf);
+        logging("Got from CGI: %s\n", buf);
     }
 
     close(readfd);

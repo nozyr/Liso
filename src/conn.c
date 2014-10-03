@@ -318,7 +318,7 @@ static void addCGI(cgi_node *node, pool* p){
 
 static void removeCGI(cgi_node *node, pool* p) {
     if (node == NULL) {
-        logging("removeCGI received a NULL pointer\n");
+        logging("removeCGI function received a NULL pointer\n");
         return;
     }
     if (node->prev != NULL) {

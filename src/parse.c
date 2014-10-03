@@ -87,6 +87,7 @@ int parseRequest(conn_node* node, response_t *resp) {
             return -1;
         }
         if (n == 0) {
+            logging("The EOF condition is triggered\n");
             resp->error = true;
             return 0;
         }
