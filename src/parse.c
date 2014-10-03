@@ -224,10 +224,10 @@ int parseRequest(conn_node* node, response_t *resp) {
     connection = getValueByKey(resp->hdhead, "Connection");
 
     if (connection != NULL) {
-        if(!strcmp(connection, "Keep-Alive")){
+        if (strstr(connection, "Keep-Alive")) {
             resp->keepAlive = true;
         }
-        else if (!strcmp(connection, "Close")) {
+        else if (strstr(connection, "Close")) {
             resp->conn_close = true;
         }
 
