@@ -207,10 +207,8 @@ int parseRequest(conn_node* node, response_t *resp) {
         resp->postbody = malloc(post_len+1);
         memset(resp->postbody, 0, post_len+1);
         rc = readblock(node, resp->postbody, post_len);
-        if (rc != post_len) {
+        if (rc < post_len) {
             logging("error! post length %d not equal to post_len\n", rc);
-            resp->error = true;
-            resp->status = BAD_REQUEST;
             return -1;
         }
         resp->postlen = rc;
