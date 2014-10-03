@@ -96,7 +96,7 @@ static bool isCGIreq(char *uri){
 int parseRequest(conn_node* node, response_t *resp) {
     char buf[BUFSIZE], method[BUFSIZE], version[BUFSIZE];
     char* connection = NULL;
-    int n, post_len = -1;
+    int n, post_len = 0;
     bool isPost = false;
 
     /*Read the request line*/
@@ -207,17 +207,19 @@ int parseRequest(conn_node* node, response_t *resp) {
         resp->postbody = malloc(post_len+1);
         memset(resp->postbody, 0, post_len+1);
         rc = readblock(node, resp->postbody, post_len);
-        if (rc < post_len) {
-            logging("error! post length %d smaller than expected\n", rc);
+        if (rc != post_len) {
+            logging("error! post length %d not equal to post_len\n", rc);
+            resp->error = true;
+            resp->status = BAD_REQUEST;
             return -1;
         }
         resp->postlen = rc;
         logging("The postbody is:\n%s\n", resp->postbody);
         logging("The post length is: %d\n", resp->postlen);
     }
-    else if (isPost == true && post_len == -1) {
+    else if (isPost == true && post_len < 0) {
         resp->error = true;
-        resp->status = LENGTH_REQUIRED;
+        resp->status = BAD_REQUEST;
         return -1;
     }
 
