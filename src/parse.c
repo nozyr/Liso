@@ -209,13 +209,15 @@ int parseRequest(conn_node* node, response_t *resp) {
         rc = readblock(node, resp->postbody, post_len);
         if (rc < post_len) {
             logging("error! post length %d not equal to post_len\n", rc);
+            resp->error = true;
+            resp->status = BAD_REQUEST;
             return -1;
         }
         resp->postlen = rc;
         logging("The postbody is:\n%s\n", resp->postbody);
         logging("The post length is: %d\n", resp->postlen);
     }
-    else if (isPost == true && post_len == -1) {
+    else if (isPost == true && post_len < 0) {
         resp->error = true;
         resp->status = BAD_REQUEST;
         return -1;
