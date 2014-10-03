@@ -105,7 +105,6 @@ int parseRequest(conn_node *node, response_t *resp) {
         if (n == -1) {
             resp->error = true;
             resp->status = INTERNAL_SERVER_ERROR;
-            resp->conn_close = true;
             logging("Can not read from socket %d\n", node->connfd);
             logging("%s", strerror(errno));
             return -1;
@@ -113,7 +112,6 @@ int parseRequest(conn_node *node, response_t *resp) {
         if (n == 0) {
             logging("The EOF condition is triggered\n");
             resp->error = true;
-            resp->conn_close = true;
             return 0;
         }
     }
@@ -124,7 +122,6 @@ int parseRequest(conn_node *node, response_t *resp) {
     if (sscanf(buf, "%s %s %s", method, resp->uri, version) < 3) {
         resp->error = true;
         resp->status = BAD_REQUEST;
-        resp->conn_close = true;
         return -1;
     }
 
@@ -139,7 +136,6 @@ int parseRequest(conn_node *node, response_t *resp) {
     if (parseUri(resp->uri, resp->page) < 0) {
         resp->error = true;
         resp->status = BAD_REQUEST;
-
         return -1;
     }
 
@@ -246,9 +242,18 @@ int parseRequest(conn_node *node, response_t *resp) {
 
 static int parseUri(char *uri, char *page) {
     memset(page, 0, BUFSIZE);
+    int status = 0, temport;
+    char host[BUFSIZE];
     logging("Parsing Uri..............\n");
 
-   if (uri[0] != '/') {
+    if (strstr(uri, "http://")) {
+        if (sscanf(uri, "http://%8192[^:]:%i/%8192[^\n]", host, &temport, page) == 3) {status = 1;}
+        else if (sscanf(uri, "http://%8192[^/]/%8192[^\n]", host, page) == 2) {status = 2;}
+        else if (sscanf(uri, "http://%8192[^:]:%i[^\n]", host, &temport) == 2) {status = 3;}
+        else if (sscanf(uri, "http://%8192[^/]", host) == 1) {status = 4;}
+        else {return -1;}
+    }
+    else if (uri[0] != '/') {
         logging("The uri %s is invalid\n", uri);
         return -1;
     }
@@ -256,7 +261,10 @@ static int parseUri(char *uri, char *page) {
         strcpy(page, uri);
     }
 
-    if (!strcmp(page, "/")) {
+    if (status > 3) {
+        sprintf(page, "/index.html");
+    }
+    else if (!strcmp(page, "/")) {
         strcat(page, "index.html");
     }
 
