@@ -97,7 +97,7 @@ static bool isCGIreq(char *uri) {
 int parseRequest(conn_node *node, response_t *resp) {
     char buf[BUFSIZE], method[BUFSIZE], version[BUFSIZE];
     char *connection = NULL;
-    int n, post_len = -1, ret = 0;
+    int n, post_len = -1;
     bool isPost = false;
 
     /*Read the request line*/
@@ -124,51 +124,48 @@ int parseRequest(conn_node *node, response_t *resp) {
     if (sscanf(buf, "%s %s %s", method, resp->uri, version) < 3) {
         resp->error = true;
         resp->status = BAD_REQUEST;
-//        resp->conn_close = true;
-        ret = -1;
+        resp->conn_close = true;
+        return -1;
     }
 
-    if (resp->error == false && !strstr(version, "HTTP/1.1")) {
+    if (!strstr(version, "HTTP/1.1")) {
         logging("Http version not supported! Stop parsing!!\n");
         resp->error = true;
         resp->status = HTTP_VERSION_NOT_SUPPORTED;
-        ret = -1;
+        return -1;
     }
 
     logging("Start Parsing uri: %s\n", resp->uri);
-    if (resp->error == false && parseUri(resp->uri, resp->page) < 0) {
+    if (parseUri(resp->uri, resp->page) < 0) {
         resp->error = true;
         resp->status = BAD_REQUEST;
-//        resp->conn_close = true;
-        ret = -1;
+
+        return -1;
     }
 
     /*Judge the request is cgi or not*/
-    if (resp->error == false) {
-        resp->isCGI = isCGIreq(resp->page);
+    resp->isCGI = isCGIreq(resp->page);
 
-        /*Judge the request method*/
-        if (!strcmp(method, "GET")) {
-            resp->method = GET;
-        }
-        else if (!strcmp(method, "HEAD")) {
-            resp->method = HEAD;
-        }
-        else if (!strcmp(method, "POST")) {
-            resp->method = POST;
-            isPost = true;
-        }
-        else {
-            resp->method = NOT_SUPPORT;
-            resp->error = true;
-            resp->status = NOT_IMPLEMENTED;
-            ret = -1;
-        }
-
+    if (!strcmp(method, "GET")) {
+        resp->method = GET;
+    }
+    else if (!strcmp(method, "HEAD")) {
+        resp->method = HEAD;
+    }
+    else if (!strcmp(method, "POST")) {
+        resp->method = POST;
+        isPost = true;
+    }
+    else {
+        resp->method = NOT_SUPPORT;
+        resp->error = true;
+        resp->status = NOT_IMPLEMENTED;
+        return -1;
     }
 
+    /*Read the rest of the headers*/
 
-    do { /*Read the rest of the headers*/
+    do {
         char *pos = NULL;
         char *key = NULL;
         char *value = NULL;
@@ -176,7 +173,7 @@ int parseRequest(conn_node *node, response_t *resp) {
         n = readline(node, buf, BUFSIZE);
         logging("%s", buf);
 
-        if (resp->error == false && n > 2) {
+        if (n > 2) {
             key = malloc(BUFSIZE);
             value = malloc(BUFSIZE);
 
@@ -189,14 +186,14 @@ int parseRequest(conn_node *node, response_t *resp) {
                 logging("parsing header line %s error!\n", buf);
                 free(key);
                 free(value);
-                ret = -1;
+                return -1;
             }
-            else{
-                key = realloc(key, strlen(key) + 1);
-                value = realloc(value, strlen(value) + 1);
-                inserthdNode(resp, newNode(key, value));
-                resp->hdlineNum++;
-            }
+
+            key = realloc(key, strlen(key) + 1);
+            value = realloc(value, strlen(value) + 1);
+            inserthdNode(resp, newNode(key, value));
+            resp->hdlineNum++;
+
         }
 
 
@@ -212,7 +209,11 @@ int parseRequest(conn_node *node, response_t *resp) {
     logging("finished reading the header\n");
 
     /*if is post method, read the content in the body*/
-    if (isPost == true && post_len > 0) {
+    if (isPost == true && post_len <= 0) {
+        resp->error = true;
+        resp->status = BAD_REQUEST;
+        return -1;
+    }else if (isPost == true) {
         int rc;
         resp->postbody = malloc(post_len * 2);
         memset(resp->postbody, 0, post_len * 2);
@@ -221,16 +222,11 @@ int parseRequest(conn_node *node, response_t *resp) {
             logging("error! post length %d not equal to post_len\n", rc);
             resp->error = true;
             resp->status = BAD_REQUEST;
-            ret = -1;
+            return -1;
         }
         resp->postlen = rc;
         logging("The postbody is:\n%s\n", resp->postbody);
         logging("The post length is: %d\n", resp->postlen);
-    }
-    else if (isPost == true && post_len < 0) {
-        resp->error = true;
-        resp->status = BAD_REQUEST;
-        return -1;
     }
 
     connection = getValueByKey(resp->hdhead, "Connection");
@@ -245,7 +241,7 @@ int parseRequest(conn_node *node, response_t *resp) {
 
     }
 
-    return ret;
+    return 1;
 }
 
 static int parseUri(char *uri, char *page) {
