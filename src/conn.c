@@ -88,15 +88,15 @@ void conn_handle(pool *p) {
             /*send the response here*/
             if(resp.conn_close == false){
                 if (buildresp(cur_node, &resp) == -1) {
+                    resp.error = true;
+                    resp.conn_close = true;
                     logging("response error\n");
-                    exit(EXIT_FAILURE);
                 }
             }
 
             if (resp.isCGI == true) {
                 if (resp.cgiNode == NULL) {
                     logging("Failed to get CGI node\n");
-                    exit(EXIT_FAILURE);
                 }
                 resp.cgiNode->connNode = cur_node;
 
@@ -139,7 +139,7 @@ void conn_handle(pool *p) {
             logging("--------------Now start handling cgi output at %d-----------------\n", cur_cgi->connfd);
             p->nconn--;
             if (CGIresp(cur_cgi) == -1) {
-                exit(EXIT_FAILURE);
+                logging("CGI response error\n");
             }
 
             tormNode = cur_cgi;
