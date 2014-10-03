@@ -94,7 +94,7 @@ void conn_handle(pool *p) {
                 }
             }
 
-            if (resp.isCGI == true) {
+            if (resp.isCGI == true && resp.error == false) {
                 if (resp.cgiNode == NULL) {
                     logging("Failed to get CGI node\n");
                 }
