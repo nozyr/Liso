@@ -179,7 +179,9 @@ int parseRequest(conn_node* node, response_t *resp) {
                 resp->error = true;
                 resp->status = BAD_REQUEST;
                 logging("parsing header line %s error!\n", buf);
-                break;
+                free(key);
+                free(value);
+                return -1;
             }
 
             key = realloc(key, strlen(key) + 1);
