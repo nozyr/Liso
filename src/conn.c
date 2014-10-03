@@ -1,5 +1,4 @@
 #include "conn.h"
-#include "parse.h"
 
 static void addCGI(cgi_node *node, pool* p);
 static void removeCGI(cgi_node *node, pool* p);
@@ -85,16 +84,15 @@ void conn_handle(pool *p) {
             else {
                 logging("Start building the response\n");
             }
+
             /*send the response here*/
-            if(resp.conn_close == false){
-                if (buildresp(cur_node, &resp) == -1) {
-                    resp.error = true;
-                    resp.conn_close = true;
-                    logging("response error\n");
-                }
+            if (resp.conn_close == false && buildresp(cur_node, &resp) == -1) {
+                resp.error = true;
+                resp.conn_close = true;
+                logging("response error\n");
             }
 
-            if (resp.isCGI == true && resp.error == false) {
+            if (resp.error == false && resp.isCGI == true) {
                 if (resp.cgiNode == NULL) {
                     logging("Failed to get CGI node\n");
                 }
@@ -239,7 +237,6 @@ int add_ssl(int connfd, pool *p, SSL_CTX *ssl_context, struct sockaddr_in* cli_a
     }
 
     if ((client_context = SSL_new(ssl_context)) == NULL) {
-//        ERR_print_errors_fp(stderr);
         logging("Error creating client SSL context.\n");
         return -1;
     }
@@ -252,7 +249,6 @@ int add_ssl(int connfd, pool *p, SSL_CTX *ssl_context, struct sockaddr_in* cli_a
 
     if ((ret = SSL_accept(client_context) <= 0)) {
         SSL_free(client_context);
-//        ERR_print_errors_fp(stderr);
         handleErr(ret);
         logging("Error accepting (handshake) client SSL context.\n");
         return -1;
